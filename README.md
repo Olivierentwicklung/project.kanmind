@@ -33,6 +33,7 @@ KanMind provides authentication, board management, task workflows, and comment c
 - Python 3.10+
 - pip / virtualenv
 - SQLite (default)
+- Pytest
 - Optional: Postman
 
 ---
@@ -56,6 +57,8 @@ cp .env.template .env
      - Open the new .env file and replace the placeholders with your actual local secrets.
 
 python manage.py migrate
+
+pytest
 
 python manage.py runserver
 ```
@@ -164,6 +167,30 @@ project.kanmind/
 │           ├── urls.py
 │           └── permissions.py
 │
+├── tests/
+│   ├── __init__.py
+│   ├── conftest.py
+│   ├── auth_app/
+│   │   ├── __init__.py
+│   │   ├── test_models.py
+│   │   ├── test_registration.py
+│   │   ├── test_login.py
+│   │   └── test_email_check.py
+│   │
+│   └── kanban_app/
+│       ├── __init__.py
+│       ├── boards/
+│       │   ├── __init__.py
+│       │   ├── test_models.py
+│       │   └── test_boards_api.py
+│       │
+│       └── tasks/
+│           ├── __init__.py
+│           ├── test_models.py
+│           ├── test_tasks_api.py
+│           └── test_comments_api.py
+│
+├── pytest.ini
 └── requirements.txt
 ```
 
