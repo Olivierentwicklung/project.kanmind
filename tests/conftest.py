@@ -17,3 +17,13 @@ def user():
         email='example@mail.com',
         password='examplePassword123',
     )
+
+
+@pytest.fixture
+def user_registration_payload():
+    return dict(
+        fullname='Example User',
+        email='example@mail.com',
+        password='examplePassword123',
+        repeated_password='examplePassword123',
+    )
