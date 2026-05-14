@@ -1,0 +1,132 @@
+{% extends "admin/base_site.html" %} {% load i18n static %} {% load jazzmin %}
+{% load log %} {% load django_admin_contexts_tags %} {% block content %}
+
+<div class="container-fluid">
+  {% get_contexts_form as contexts_form %} {% if contexts_form %}
+  <div class="card card-primary card-outline mb-4">
+    <div class="card-header">
+      <h3 class="card-title">
+        <i class="fas fa-filter mr-1"></i>
+        Admin Context
+      </h3>
+    </div>
+
+    <div class="card-body">
+      <form method="get" action="{% url 'admin:index' %}" class="form-inline">
+        <div class="form-group mr-2 mb-2">{{ contexts_form }}</div>
+      </form>
+    </div>
+  </div>
+  {% endif %} {% get_side_menu using="app_list" as dashboard_list %}
+  <br />
+  {% filter_by_context dashboard_list as dashboard_list %}
+
+  <div class="row">
+    <!-- LEFT SIDE: dashboard -->
+    <div class="col-lg-9">
+      <div class="row g-4">
+        {% for app in dashboard_list %}
+        <div class="col-lg-4 col-md-4 col-sm-12 mb-4">
+          <div class="card card-outline card-info shadow-sm h-100">
+            <div class="card-header">
+              <h3 class="card-title">
+                <i class="fas fa-folder-open mr-1"></i>
+                {{ app.name }}
+              </h3>
+            </div>
+
+            <div class="card-body p-0">
+              <ul class="list-group list-group-flush">
+                {% for model in app.models %}
+                <li
+                  class="list-group-item d-flex justify-content-between align-items-center"
+                >
+                  <a href="{{ model.url|default:model.admin_url }}">
+                    <i class="fas fa-angle-right mr-1"></i>
+                    {{ model.name }}
+                  </a>
+
+                  <div class="btn-group btn-group-sm">
+                    {% if model.add_url %}
+                    <a
+                      href="{{ model.add_url }}"
+                      class="btn btn-outline-success"
+                      title="Add"
+                    >
+                      <i class="fas fa-plus"></i>
+                    </a>
+                    {% endif %} {% if model.admin_url %}
+                    <a
+                      href="{{ model.admin_url }}"
+                      class="btn btn-outline-primary"
+                      title="Manage"
+                    >
+                      <i class="fas fa-pen"></i>
+                    </a>
+                    {% endif %}
+                  </div>
+                </li>
+                {% empty %}
+                <li class="list-group-item text-muted">No models available</li>
+                {% endfor %}
+              </ul>
+            </div>
+          </div>
+        </div>
+        {% endfor %}
+      </div>
+    </div>
+
+    <!-- RIGHT SIDE: recent actions -->
+    <div class="col-lg-3">
+      <div
+        class="card card-outline card-secondary shadow-sm h-100 sticky-top"
+        style="top: 1rem"
+      >
+        <div class="card-header">
+          <h3 class="card-title">
+            <i class="fas fa-history mr-1"></i>
+            Recent actions
+          </h3>
+        </div>
+
+        <div class="card-body p-0">
+          {% get_admin_log 10 as admin_log for_user user %} {% if admin_log %}
+          <ul class="list-group list-group-flush">
+            {% for entry in admin_log %}
+            <li class="list-group-item">
+              <div>
+                {% if entry.is_addition %}
+                <i class="fas fa-plus text-success mr-1"></i>
+                {% elif entry.is_change %}
+                <i class="fas fa-pen text-primary mr-1"></i>
+                {% elif entry.is_deletion %}
+                <i class="fas fa-trash text-danger mr-1"></i>
+                {% endif %}
+                <span
+                  >{% if entry.is_deletion or not entry.get_admin_url %}</span
+                >
+                <span> {{ entry.object_repr }}</span>
+                {% else %}
+                <a href="{{ entry.get_admin_url }}">
+                  {{ entry.object_repr }}
+                </a>
+                {% endif %}
+              </div>
+
+              <small class="text-muted">
+                {{ entry.content_type }} — {{ entry.action_time|timesince }} ago
+              </small>
+            </li>
+            {% endfor %}
+          </ul>
+          {% else %}
+          <div class="p-3 text-muted">No recent actions.</div>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+{% endblock %}
