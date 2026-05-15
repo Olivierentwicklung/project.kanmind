@@ -1,7 +1,7 @@
+from django.contrib.auth import authenticate
 from django.contrib.auth.models import User
 from django.db import transaction
 from rest_framework import serializers
-from rest_framework.authtoken.models import Token
 
 from auth_app.models import UserProfile
 
@@ -51,13 +51,28 @@ class RegistrationSerializer(serializers.ModelSerializer):
                 username=email, email=email, password=password
             )
 
-            profile = UserProfile.objects.create(user=user, fullname=fullname)
+            UserProfile.objects.create(user=user, fullname=fullname)
 
-            token, _ = Token.objects.get_or_create(user=user)
+        return user
 
-        return {
-            'token': token.key,
-            'fullname': profile.fullname,
-            'email': user.email,
-            'user_id': user.pk,
-        }
+
+class LoginSerializer(serializers.Serializer):
+    email = serializers.EmailField()
+    password = serializers.CharField(
+        write_only=True,
+    )
+
+    def validate(self, attrs):
+        email = attrs.get('email')
+        password = attrs.get('password')
+
+        user = authenticate(
+            username=email,
+            password=password,
+        )
+
+        if not user:
+            raise serializers.ValidationError('Invalid email or password.')
+
+        attrs['user'] = user
+        return attrs
