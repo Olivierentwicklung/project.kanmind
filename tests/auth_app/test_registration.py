@@ -49,7 +49,7 @@ def test_registration_fails_when_email_already_exists(
 def test_registration_fails_when_passwords_do_not_match(
     client, user_registration_payload
 ):
-    user_registration_payload.update({'repeated_password': 'wrong password'})
+    user_registration_payload.update(dict(repeated_password='wrong password'))
 
     response = client.post(
         '/api/registration/', user_registration_payload, format='json'
@@ -85,7 +85,7 @@ def test_registration_fails_when_required_field_is_missing(
 
 @pytest.mark.django_db
 def test_registration_fails_with_invalid_email(client, user_registration_payload):
-    user_registration_payload.update({'email': 'invalid-email'})
+    user_registration_payload.update(dict(email='invalid-email'))
 
     response = client.post(
         '/api/registration/', user_registration_payload, format='json'
@@ -97,7 +97,7 @@ def test_registration_fails_with_invalid_email(client, user_registration_payload
 
 @pytest.mark.django_db
 def test_registration_fails_with_empty_fullname(client, user_registration_payload):
-    user_registration_payload.update({'fullname': ''})
+    user_registration_payload.update(dict(fullname=''))
 
     response = client.post(
         '/api/registration/', user_registration_payload, format='json'
@@ -110,7 +110,7 @@ def test_registration_fails_with_empty_fullname(client, user_registration_payloa
 @pytest.mark.django_db
 def test_registration_fails_with_too_long_fullname(client, user_registration_payload):
 
-    user_registration_payload.update({'fullname': 'a' * 256})
+    user_registration_payload.update(dict(fullname='a' * 256))
 
     response = client.post(
         '/api/registration/', user_registration_payload, format='json'
