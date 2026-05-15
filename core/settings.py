@@ -67,7 +67,7 @@ TEMPLATES = [
     {
         'BACKEND': 'django.template.backends.django.DjangoTemplates',
         'DIRS': [
-            BASE_DIR / 'templates',
+            BASE_DIR / 'core' / 'templates',
         ],
         'APP_DIRS': True,
         'OPTIONS': {
@@ -147,5 +147,9 @@ REST_FRAMEWORK = {
 
 
 JAZZMIN_SETTINGS = {
+    'site_title': 'DA kanmind  Admin',
+    'site_header': 'DA kanmind  Administration',
+    'site_brand': 'DA kanmind ',
+    'welcome_sign': 'Welcome to DA kanmind  Admin',
     'copyright': 'DA & Olivier Lowe',
 }
