@@ -47,6 +47,8 @@ INSTALLED_APPS = [
     'rest_framework',
     'rest_framework.authtoken',
     'auth_app.apps.AuthAppConfig',
+    'kanban_app.boards.apps.BoardsConfig',
+    'kanban_app.tasks.apps.TasksConfig',
 ]
 
 MIDDLEWARE = [
