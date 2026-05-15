@@ -76,3 +76,7 @@ class LoginSerializer(serializers.Serializer):
 
         attrs['user'] = user
         return attrs
+
+
+class EmailCheckSerializer(serializers.Serializer):
+    email = serializers.EmailField()
