@@ -9,6 +9,12 @@ FAKE_USER_PROFILE_DATA = dict(
     fullname='Example User', email='example@mail.com', password='examplePassword123'
 )
 
+FAKE_SECOND_USER_PROFILE_DATA = dict(
+    fullname='Second Example User',
+    email='secondexample@mail.com',
+    password='secondexamplePassword123',
+)
+
 
 @pytest.fixture
 def client():
@@ -27,10 +33,26 @@ def user():
 
 
 @pytest.fixture
+def second_user():
+    return User.objects.create_user(
+        username=FAKE_SECOND_USER_PROFILE_DATA['email'],
+        email=FAKE_SECOND_USER_PROFILE_DATA['email'],
+        password=FAKE_SECOND_USER_PROFILE_DATA['password'],
+    )
+
+
+@pytest.fixture
 def user_profile(user):
     UserProfile.objects.create(user=user, fullname=FAKE_USER_PROFILE_DATA['fullname'])
 
     return user
+
+
+def second_user_profile(second_user):
+    UserProfile.objects.create(
+        user=second_user, fullname=FAKE_SECOND_USER_PROFILE_DATA['fullname']
+    )
+    return second_user
 
 
 @pytest.fixture
