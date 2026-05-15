@@ -147,9 +147,9 @@ REST_FRAMEWORK = {
 
 
 JAZZMIN_SETTINGS = {
-    'site_title': 'DA kanmind  Admin',
-    'site_header': 'DA kanmind  Administration',
-    'site_brand': 'DA kanmind ',
-    'welcome_sign': 'Welcome to DA kanmind  Admin',
+    'site_title': 'DA & Olivier kanmind  Admin',
+    'site_header': 'DA & Olivier kanmind  Administration',
+    'site_brand': 'DA & Olivier kanmind ',
+    'welcome_sign': 'Welcome to DA & Olivier kanmind  Admin',
     'copyright': 'DA & Olivier Lowe',
 }
