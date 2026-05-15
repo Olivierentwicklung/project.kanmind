@@ -1,5 +1,6 @@
 import pytest
 from django.contrib.auth.models import User
+from rest_framework.authtoken.models import Token
 from rest_framework.test import APIClient
 
 from auth_app.models import UserProfile
@@ -48,3 +49,13 @@ def user_login_payload():
         email=FAKE_USER_PROFILE_DATA['email'],
         password=FAKE_USER_PROFILE_DATA['password'],
     )
+
+
+@pytest.fixture
+def auth_user_client(client, user_profile):
+
+    token, _ = Token.objects.get_or_create(user=user_profile)
+
+    client.credentials(HTTP_AUTHORIZATION=f'Token {token.key}')
+
+    return client
