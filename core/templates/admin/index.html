@@ -1,132 +1,520 @@
-{% extends "admin/base_site.html" %} {% load i18n static %} {% load jazzmin %}
-{% load log %} {% load django_admin_contexts_tags %} {% block content %}
+```django
+{% extends "admin/base_site.html" %}
+{% load i18n static %}
+{% load jazzmin %}
+{% load log %}
+{% load django_admin_contexts_tags %}
+
+{% block content %}
+
+<style>
+  /* =========================
+     HEADER
+  ========================= */
+
+  .admin-dashboard-header {
+    border-radius: 0.9rem;
+    background: linear-gradient(135deg, #343a40, #17a2b8);
+    color: white;
+    padding: 1.5rem;
+    margin-bottom: 1.5rem;
+  }
+
+  .admin-dashboard-header-inner {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+  }
+
+  .admin-dashboard-title h1 {
+    font-size: 1.7rem;
+    font-weight: 600;
+    margin-bottom: 0.25rem;
+  }
+
+  .admin-dashboard-title p {
+    margin-bottom: 0;
+    opacity: 0.9;
+  }
+
+  .theme-toggle-btn {
+    white-space: nowrap;
+    border-radius: 999px;
+    padding: 0.45rem 0.9rem;
+    font-weight: 500;
+  }
+
+  /* =========================
+     CARDS
+  ========================= */
+
+  .context-card,
+  .dashboard-card,
+  .recent-card {
+    border-radius: 0.85rem;
+    overflow: hidden;
+  }
+
+  .dashboard-card {
+    transition:
+      transform 0.18s ease,
+      box-shadow 0.18s ease;
+  }
+
+  .dashboard-card:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 0.75rem 1.5rem rgba(0, 0, 0, 0.14) !important;
+  }
+
+  .dashboard-card .card-header {
+    background: white;
+    border-bottom: 1px solid #eef0f2;
+  }
+
+  .model-row {
+    transition: background-color 0.15s ease;
+  }
+
+  .model-row:hover {
+    background-color: #f8f9fa;
+  }
+
+  .model-link {
+    font-weight: 500;
+  }
+
+  .recent-action-icon {
+    width: 1.5rem;
+    display: inline-block;
+    text-align: center;
+  }
+
+  .empty-state {
+    padding: 2rem;
+    text-align: center;
+    color: #6c757d;
+  }
+
+  .sticky-actions {
+    position: sticky;
+    top: 1rem;
+  }
+
+  /* =========================
+     DARK MODE
+  ========================= */
+
+  body.dark-mode .content-wrapper {
+    background-color: #1f2327;
+    color: #e9ecef;
+  }
+
+  body.dark-mode .card {
+    background-color: #2b3035;
+    color: #e9ecef;
+    border-color: #444;
+  }
+
+  body.dark-mode .card-header {
+    background-color: #343a40;
+    border-bottom-color: #444;
+  }
+
+  body.dark-mode .list-group-item {
+    background-color: #2b3035;
+    color: #e9ecef;
+    border-color: #444;
+  }
+
+  body.dark-mode .model-row:hover {
+    background-color: #343a40;
+  }
+
+  body.dark-mode a {
+    color: #6cb2eb;
+  }
+
+  body.dark-mode .text-muted {
+    color: #adb5bd !important;
+  }
+
+  body.dark-mode .admin-dashboard-header {
+    background: linear-gradient(135deg, #111827, #0f766e);
+  }
+
+  /* =========================
+     RESPONSIVE
+  ========================= */
+
+  @media (max-width: 991px) {
+    .sticky-actions {
+      position: relative;
+      top: auto;
+      margin-top: 1rem;
+    }
+  }
+
+  @media (max-width: 576px) {
+    .admin-dashboard-header {
+      padding: 1.25rem;
+    }
+
+    .admin-dashboard-header-inner {
+      flex-direction: column;
+      align-items: flex-start;
+    }
+
+    .theme-toggle-btn {
+      width: 100%;
+      justify-content: center;
+    }
+
+    .admin-dashboard-title h1 {
+      font-size: 1.35rem;
+    }
+  }
+</style>
 
 <div class="container-fluid">
-  {% get_contexts_form as contexts_form %} {% if contexts_form %}
-  <div class="card card-primary card-outline mb-4">
-    <div class="card-header">
-      <h3 class="card-title">
-        <i class="fas fa-filter mr-1"></i>
-        Admin Context
-      </h3>
+
+  <!-- HEADER -->
+  <div class="admin-dashboard-header shadow-sm">
+
+    <div class="admin-dashboard-header-inner">
+
+      <div class="admin-dashboard-title">
+
+        <h1>
+          <i class="fas fa-tachometer-alt mr-2"></i>
+          Admin Dashboard
+        </h1>
+
+        <p>
+          Manage your project data, boards, tasks, and recent activity.
+        </p>
+
+      </div>
+
+      <button
+        id="themeToggle"
+        type="button"
+        class="btn btn-light btn-sm theme-toggle-btn d-inline-flex align-items-center"
+      >
+        <i class="fas fa-moon mr-1"></i>
+      </button>
+
     </div>
 
-    <div class="card-body">
-      <form method="get" action="{% url 'admin:index' %}" class="form-inline">
-        <div class="form-group mr-2 mb-2">{{ contexts_form }}</div>
-      </form>
-    </div>
   </div>
-  {% endif %} {% get_side_menu using="app_list" as dashboard_list %}
-  <br />
+
+  <!-- CONTEXT FILTER -->
+  {% get_contexts_form as contexts_form %}
+
+  {% if contexts_form %}
+    <div class="card card-primary card-outline context-card shadow-sm mb-4">
+
+      <div class="card-header">
+        <h3 class="card-title mb-0">
+          <i class="fas fa-filter mr-1"></i>
+          Admin Context
+        </h3>
+      </div>
+
+      <div class="card-body">
+
+        <form method="get" action="{% url 'admin:index' %}">
+
+          <div class="d-flex flex-wrap align-items-center">
+
+            <div class="mr-3 mb-2">
+              {{ contexts_form }}
+            </div>
+          </div>
+
+        </form>
+
+      </div>
+
+    </div>
+  {% endif %}
+
+  <!-- DASHBOARD -->
+  {% get_side_menu using="app_list" as dashboard_list %}
   {% filter_by_context dashboard_list as dashboard_list %}
 
   <div class="row">
-    <!-- LEFT SIDE: dashboard -->
+
+    <!-- LEFT -->
     <div class="col-lg-9">
-      <div class="row g-4">
+
+      <div class="row">
+
         {% for app in dashboard_list %}
-        <div class="col-lg-4 col-md-4 col-sm-12 mb-4">
-          <div class="card card-outline card-info shadow-sm h-100">
-            <div class="card-header">
-              <h3 class="card-title">
-                <i class="fas fa-folder-open mr-1"></i>
-                {{ app.name }}
-              </h3>
-            </div>
 
-            <div class="card-body p-0">
-              <ul class="list-group list-group-flush">
-                {% for model in app.models %}
-                <li
-                  class="list-group-item d-flex justify-content-between align-items-center"
-                >
-                  <a href="{{ model.url|default:model.admin_url }}">
-                    <i class="fas fa-angle-right mr-1"></i>
-                    {{ model.name }}
-                  </a>
+          <div class="col-xl-4 col-lg-6 col-md-6 col-sm-12 mb-4">
 
-                  <div class="btn-group btn-group-sm">
-                    {% if model.add_url %}
-                    <a
-                      href="{{ model.add_url }}"
-                      class="btn btn-outline-success"
-                      title="Add"
-                    >
-                      <i class="fas fa-plus"></i>
-                    </a>
-                    {% endif %} {% if model.admin_url %}
-                    <a
-                      href="{{ model.admin_url }}"
-                      class="btn btn-outline-primary"
-                      title="Manage"
-                    >
-                      <i class="fas fa-pen"></i>
-                    </a>
-                    {% endif %}
+            <div class="card dashboard-card card-outline card-info shadow-sm h-100">
+
+              <div class="card-header d-flex align-items-center justify-content-between">
+
+                <h3 class="card-title mb-0">
+                  <i class="fas fa-folder-open text-info mr-1"></i>
+                  {{ app.name }}
+                </h3>
+
+                <span class="badge badge-info">
+                  {{ app.models|length }}
+                </span>
+
+              </div>
+
+              <div class="card-body p-0">
+
+                {% if app.models %}
+
+                  <ul class="list-group list-group-flush">
+
+                    {% for model in app.models %}
+
+                      <li
+                        class="list-group-item model-row d-flex justify-content-between align-items-center"
+                      >
+
+                        <a
+                          href="{{ model.url|default:model.admin_url }}"
+                          class="model-link"
+                        >
+                          <i class="fas fa-angle-right text-muted mr-1"></i>
+                          {{ model.name }}
+                        </a>
+
+                        <div class="btn-group btn-group-sm">
+
+                          {% if model.add_url %}
+                            <a
+                              href="{{ model.add_url }}"
+                              class="btn btn-outline-success"
+                              title="Add"
+                            >
+                              <i class="fas fa-plus"></i>
+                            </a>
+                          {% endif %}
+
+                          {% if model.admin_url %}
+                            <a
+                              href="{{ model.admin_url }}"
+                              class="btn btn-outline-primary"
+                              title="Manage"
+                            >
+                              <i class="fas fa-list"></i>
+                            </a>
+                          {% endif %}
+
+                        </div>
+
+                      </li>
+
+                    {% endfor %}
+
+                  </ul>
+
+                {% else %}
+
+                  <div class="empty-state">
+                    <i class="fas fa-box-open fa-2x mb-2"></i>
+                    <div>No models available</div>
                   </div>
-                </li>
-                {% empty %}
-                <li class="list-group-item text-muted">No models available</li>
-                {% endfor %}
-              </ul>
+
+                {% endif %}
+
+              </div>
+
             </div>
+
           </div>
-        </div>
+
+        {% empty %}
+
+          <div class="col-12">
+
+            <div class="card shadow-sm">
+
+              <div class="empty-state">
+                <i class="fas fa-filter fa-2x mb-2"></i>
+
+                <div>
+                  No apps available for the selected context.
+                </div>
+              </div>
+
+            </div>
+
+          </div>
+
         {% endfor %}
+
       </div>
+
     </div>
 
-    <!-- RIGHT SIDE: recent actions -->
+    <!-- RIGHT -->
     <div class="col-lg-3">
+
       <div
-        class="card card-outline card-secondary shadow-sm h-100 sticky-top"
-        style="top: 1rem"
+        class="card recent-card card-outline card-secondary shadow-sm sticky-actions"
       >
+
         <div class="card-header">
-          <h3 class="card-title">
+          <h3 class="card-title mb-0">
             <i class="fas fa-history mr-1"></i>
             Recent actions
           </h3>
         </div>
 
         <div class="card-body p-0">
-          {% get_admin_log 10 as admin_log for_user user %} {% if admin_log %}
-          <ul class="list-group list-group-flush">
-            {% for entry in admin_log %}
-            <li class="list-group-item">
-              <div>
-                {% if entry.is_addition %}
-                <i class="fas fa-plus text-success mr-1"></i>
-                {% elif entry.is_change %}
-                <i class="fas fa-pen text-primary mr-1"></i>
-                {% elif entry.is_deletion %}
-                <i class="fas fa-trash text-danger mr-1"></i>
-                {% endif %}
-                <span
-                  >{% if entry.is_deletion or not entry.get_admin_url %}</span
-                >
-                <span> {{ entry.object_repr }}</span>
-                {% else %}
-                <a href="{{ entry.get_admin_url }}">
-                  {{ entry.object_repr }}
-                </a>
-                {% endif %}
-              </div>
 
-              <small class="text-muted">
-                {{ entry.content_type }} — {{ entry.action_time|timesince }} ago
-              </small>
-            </li>
-            {% endfor %}
-          </ul>
+          {% get_admin_log 10 as admin_log for_user user %}
+
+          {% if admin_log %}
+
+            <ul class="list-group list-group-flush">
+
+              {% for entry in admin_log %}
+
+                <li class="list-group-item">
+
+                  <div class="mb-1">
+
+                    {% if entry.is_addition %}
+                      <span class="recent-action-icon text-success">
+                        <i class="fas fa-plus-circle"></i>
+                      </span>
+
+                    {% elif entry.is_change %}
+                      <span class="recent-action-icon text-primary">
+                        <i class="fas fa-edit"></i>
+                      </span>
+
+                    {% elif entry.is_deletion %}
+                      <span class="recent-action-icon text-danger">
+                        <i class="fas fa-trash-alt"></i>
+                      </span>
+                    {% endif %}
+
+                    {% if entry.is_deletion or not entry.get_admin_url %}
+
+                      <span>
+                        {{ entry.object_repr }}
+                      </span>
+
+                    {% else %}
+
+                      <a href="{{ entry.get_admin_url }}">
+                        {{ entry.object_repr }}
+                      </a>
+
+                    {% endif %}
+
+                  </div>
+
+                  <small class="text-muted d-block">
+                    {{ entry.content_type }}
+                  </small>
+
+                  <small class="text-muted">
+                    {{ entry.action_time|timesince }} ago
+                  </small>
+
+                </li>
+
+              {% endfor %}
+
+            </ul>
+
           {% else %}
-          <div class="p-3 text-muted">No recent actions.</div>
+
+            <div class="empty-state">
+              <i class="fas fa-clock fa-2x mb-2"></i>
+              <div>No recent actions.</div>
+            </div>
+
           {% endif %}
+
         </div>
+
       </div>
+
     </div>
+
   </div>
+
 </div>
 
+<!-- =========================
+     DARK MODE SCRIPT
+========================= -->
+
+<script>
+  (function () {
+    const body = document.body;
+    const button = document.getElementById("themeToggle");
+
+    function setTheme(theme) {
+      if (theme === "dark") {
+        body.classList.add("dark-mode");
+
+        localStorage.setItem(
+          "admin-theme",
+          "dark",
+        );
+
+        if (button) {
+          button.innerHTML =
+            '<i class="fas fa-sun mr-1"></i> Light mode';
+
+          button.classList.remove("btn-light");
+          button.classList.add("btn-warning");
+        }
+      } else {
+        body.classList.remove("dark-mode");
+
+        localStorage.setItem(
+          "admin-theme",
+          "light",
+        );
+
+        if (button) {
+          button.innerHTML =
+            '<i class="fas fa-moon mr-1"></i> Dark mode';
+
+          button.classList.remove("btn-warning");
+          button.classList.add("btn-light");
+        }
+      }
+    }
+
+    const savedTheme =
+      localStorage.getItem("admin-theme") ||
+      "light";
+
+    setTheme(savedTheme);
+
+    if (button) {
+      button.addEventListener(
+        "click",
+        function () {
+          const isDark =
+            body.classList.contains("dark-mode");
+
+          setTheme(
+            isDark ? "light" : "dark",
+          );
+        },
+      );
+    }
+  })();
+</script>
+
 {% endblock %}
+```
