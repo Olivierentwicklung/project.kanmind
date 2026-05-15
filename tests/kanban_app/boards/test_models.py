@@ -1,4 +1,5 @@
 import pytest
+
 from kanban_app.boards.models import Board
 
 

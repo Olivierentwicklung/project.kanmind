@@ -43,16 +43,16 @@ def second_user():
 
 @pytest.fixture
 def user_profile(user):
-    UserProfile.objects.create(user=user, fullname=FAKE_USER_PROFILE_DATA['fullname'])
+    return UserProfile.objects.create(
+        user=user, fullname=FAKE_USER_PROFILE_DATA['fullname']
+    )
 
-    return user
 
-
+@pytest.fixture
 def second_user_profile(second_user):
-    UserProfile.objects.create(
+    return UserProfile.objects.create(
         user=second_user, fullname=FAKE_SECOND_USER_PROFILE_DATA['fullname']
     )
-    return second_user
 
 
 @pytest.fixture
@@ -74,9 +74,9 @@ def user_login_payload():
 
 
 @pytest.fixture
-def auth_user_client(client, user_profile):
+def auth_user_client(client, user):
 
-    token, _ = Token.objects.get_or_create(user=user_profile)
+    token, _ = Token.objects.get_or_create(user=user)
 
     client.credentials(HTTP_AUTHORIZATION=f'Token {token.key}')
 
