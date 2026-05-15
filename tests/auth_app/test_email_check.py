@@ -10,21 +10,21 @@ def test_email_check_success(auth_user_client, user_profile):
 
     response = auth_user_client.get(
         EMAIL_CHECK_URL,
-        {'email': user_profile.email},
+        {'email': user_profile.user.email},
         format='json',
     )
 
     assert response.status_code == 200
     assert response.data['id'] == user_profile.id
-    assert response.data['email'] == user_profile.email
-    assert response.data['fullname'] == user_profile.userprofile.fullname
+    assert response.data['email'] == user_profile.user.email
+    assert response.data['fullname'] == user_profile.fullname
 
 
 @pytest.mark.django_db
 def test_email_check_fails_when_not_authenticated(client, user_profile):
     response = client.get(
         EMAIL_CHECK_URL,
-        {'email': user_profile.email},
+        {'email': user_profile.user.email},
         format='json',
     )
 
@@ -76,7 +76,7 @@ def test_email_check_returns_500_when_unexpected_error_happens(
     ):
         response = auth_user_client.get(
             EMAIL_CHECK_URL,
-            {'email': user_profile.email},
+            {'email': user_profile.user.email},
             format='json',
         )
 

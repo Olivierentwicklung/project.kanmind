@@ -9,6 +9,12 @@ FAKE_USER_PROFILE_DATA = dict(
     fullname='Example User', email='example@mail.com', password='examplePassword123'
 )
 
+FAKE_SECOND_USER_PROFILE_DATA = dict(
+    fullname='Second Example User',
+    email='secondexample@mail.com',
+    password='secondexamplePassword123',
+)
+
 
 @pytest.fixture
 def client():
@@ -27,10 +33,26 @@ def user():
 
 
 @pytest.fixture
-def user_profile(user):
-    UserProfile.objects.create(user=user, fullname=FAKE_USER_PROFILE_DATA['fullname'])
+def second_user():
+    return User.objects.create_user(
+        username=FAKE_SECOND_USER_PROFILE_DATA['email'],
+        email=FAKE_SECOND_USER_PROFILE_DATA['email'],
+        password=FAKE_SECOND_USER_PROFILE_DATA['password'],
+    )
 
-    return user
+
+@pytest.fixture
+def user_profile(user):
+    return UserProfile.objects.create(
+        user=user, fullname=FAKE_USER_PROFILE_DATA['fullname']
+    )
+
+
+@pytest.fixture
+def second_user_profile(second_user):
+    return UserProfile.objects.create(
+        user=second_user, fullname=FAKE_SECOND_USER_PROFILE_DATA['fullname']
+    )
 
 
 @pytest.fixture
@@ -52,9 +74,9 @@ def user_login_payload():
 
 
 @pytest.fixture
-def auth_user_client(client, user_profile):
+def auth_user_client(client, user):
 
-    token, _ = Token.objects.get_or_create(user=user_profile)
+    token, _ = Token.objects.get_or_create(user=user)
 
     client.credentials(HTTP_AUTHORIZATION=f'Token {token.key}')
 

@@ -14,11 +14,11 @@ def test_login_success(client, user_profile, user_login_payload):
     data = response.data
 
     assert 'token' in data
-    assert data['email'] == user_profile.email
-    assert data['fullname'] == user_profile.userprofile.fullname
+    assert data['email'] == user_profile.user.email
+    assert data['fullname'] == user_profile.fullname
     assert data['user_id'] == user_profile.pk
 
-    assert Token.objects.filter(user=user_profile).exists()
+    assert Token.objects.filter(user=user_profile.user).exists()
 
 
 @pytest.mark.django_db
@@ -75,13 +75,13 @@ def test_login_returns_same_token_if_token_already_exists(
     client, user_profile, user_login_payload
 ):
 
-    existing_token = Token.objects.create(user=user_profile)
+    existing_token = Token.objects.create(user=user_profile.user)
 
     response = client.post('/api/login/', user_login_payload, format='json')
 
     assert response.status_code == 200
     assert response.data['token'] == existing_token.key
-    assert Token.objects.filter(user=user_profile).count() == 1
+    assert Token.objects.filter(user=user_profile.user).count() == 1
 
 
 @pytest.mark.django_db
