@@ -1,6 +1,8 @@
 from django.db.models import Count, Q
+from rest_framework import status
 from rest_framework.generics import ListCreateAPIView
 from rest_framework.permissions import IsAuthenticated
+from rest_framework.response import Response
 
 from kanban_app.boards.models import Board
 from kanban_app.tasks.models import Task
@@ -19,9 +21,37 @@ class BoardListView(ListCreateAPIView):
             Q(owner=user_profile) | Q(members=user_profile)
         ).values('id')
 
+        return self.get_annotated_queryset().filter(id__in=accessible_board_ids)
+
+    def create(self, request, *args, **kwargs):
+        serializer = BoardListSerializer(
+            data=request.data,
+            context=self.get_serializer_context(),
+        )
+
+        if serializer.is_valid():
+            board = serializer.save()
+
+            annotated_board = self.get_annotated_queryset().get(id=board.id)  # type: ignore
+
+            response_serializer = BoardListSerializer(
+                annotated_board,
+                context=self.get_serializer_context(),
+            )
+
+            return Response(
+                response_serializer.data,
+                status=status.HTTP_201_CREATED,
+            )
+
+        return Response(
+            serializer.errors,
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
+    def get_annotated_queryset(self):
         return (
-            Board.objects.filter(id__in=accessible_board_ids)
-            .select_related('owner')  # optimization ForeignKey
+            Board.objects.select_related('owner')  # optimization ForeignKey
             .annotate(  # optimization ManyToMany and reverse FK
                 member_count=Count('members', distinct=True),
                 ticket_count=Count('tasks', distinct=True),
