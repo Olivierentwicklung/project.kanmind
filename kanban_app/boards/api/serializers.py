@@ -2,6 +2,7 @@ from rest_framework import serializers
 
 from auth_app.models import UserProfile
 from kanban_app.boards.models import Board
+from kanban_app.tasks.models import Task
 
 
 class BoardListSerializer(serializers.ModelSerializer):
@@ -46,3 +47,51 @@ class BoardListSerializer(serializers.ModelSerializer):
         board.members.set(members)
 
         return board
+
+
+class BoardUserProfileSerializer(serializers.ModelSerializer):
+    email = serializers.EmailField(source='user.email')
+
+    class Meta:
+        model = UserProfile
+        fields = [
+            'id',
+            'email',
+            'fullname',
+        ]
+
+
+class BoardTaskSerializer(serializers.ModelSerializer):
+    assignee = BoardUserProfileSerializer(read_only=True)
+    reviewer = BoardUserProfileSerializer(read_only=True)
+    comments_count = serializers.IntegerField(read_only=True)
+
+    class Meta:
+        model = Task
+        fields = [
+            'id',
+            'title',
+            'description',
+            'status',
+            'priority',
+            'assignee',
+            'reviewer',
+            'due_date',
+            'comments_count',
+        ]
+
+
+class BoardDetailSerializer(serializers.ModelSerializer):
+    owner_id = serializers.IntegerField(source='owner.id', read_only=True)
+    members = BoardUserProfileSerializer(many=True, read_only=True)
+    tasks = BoardTaskSerializer(many=True, read_only=True)
+
+    class Meta:
+        model = Board
+        fields = [
+            'id',
+            'title',
+            'owner_id',
+            'members',
+            'tasks',
+        ]
