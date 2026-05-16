@@ -65,6 +65,7 @@ def test_list_boards_returns_only_accessible_boards(
 @pytest.mark.django_db
 def test_list_boards_returns_empty_list_when_user_has_no_boards(
     auth_user_client,
+    user_profile,
     private_board,
 ):
     response = auth_user_client.get(BOARDS_URL)
