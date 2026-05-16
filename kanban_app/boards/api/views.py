@@ -21,8 +21,8 @@ class BoardListView(ListCreateAPIView):
 
         return (
             Board.objects.filter(id__in=accessible_board_ids)
-            .select_related('owner')
-            .annotate(
+            .select_related('owner')  # optimization ForeignKey
+            .annotate(  # optimization ManyToMany and reverse FK
                 member_count=Count('members', distinct=True),
                 ticket_count=Count('tasks', distinct=True),
                 tasks_to_do_count=Count(
