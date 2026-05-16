@@ -1,13 +1,17 @@
-from django.db.models import Count, Q
+from django.db.models import Count, Prefetch, Q
 from rest_framework import status
-from rest_framework.generics import ListCreateAPIView
+from rest_framework.generics import (
+    ListCreateAPIView,
+    RetrieveUpdateDestroyAPIView,
+)
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 
 from kanban_app.boards.models import Board
 from kanban_app.tasks.models import Task
 
-from .serializers import BoardListSerializer
+from .permissions import IsBoardMemberOrOwner
+from .serializers import BoardDetailSerializer, BoardListSerializer
 
 
 class BoardListView(ListCreateAPIView):
@@ -67,4 +71,20 @@ class BoardListView(ListCreateAPIView):
                 ),
             )
             .distinct()
+        )
+
+
+class BoardRetrieveUpdateDestroyView(RetrieveUpdateDestroyAPIView):
+    serializer_class = BoardDetailSerializer
+    permission_classes = [IsAuthenticated, IsBoardMemberOrOwner]
+    lookup_url_kwarg = 'board_id'
+
+    def get_queryset(self):  # type: ignore
+        tasks_queryset = Task.objects.select_related(
+            'assignee__user', 'reviewer__user'
+        ).annotate(comments_count=Count('comments', distinct=True))
+
+        return Board.objects.select_related('owner').prefetch_related(
+            'members__user',
+            Prefetch('tasks', queryset=tasks_queryset),
         )
