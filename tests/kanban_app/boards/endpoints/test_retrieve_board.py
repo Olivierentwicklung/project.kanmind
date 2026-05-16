@@ -10,18 +10,18 @@ BOARDS_URL = '/api/boards/'
 @pytest.mark.django_db
 def test_retrieve_board_success_as_owner(
     auth_user_client,
-    board_with_tasks,
+    board_with_detailed_tasks,
     user_profile,
     second_user_profile,
 ):
-    response = auth_user_client.get(f'{BOARDS_URL}{board_with_tasks.id}/')
+    response = auth_user_client.get(f'{BOARDS_URL}{board_with_detailed_tasks.id}/')
 
     assert response.status_code == 200
 
     data = response.data
 
-    assert data['id'] == board_with_tasks.id
-    assert data['title'] == board_with_tasks.title
+    assert data['id'] == board_with_detailed_tasks.id
+    assert data['title'] == board_with_detailed_tasks.title
     assert data['owner_id'] == user_profile.id
 
     assert len(data['members']) == 2
