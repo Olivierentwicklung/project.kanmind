@@ -74,7 +74,7 @@ class BoardListView(ListCreateAPIView):
         )
 
 
-class BoardRetrieveUpdateDestroyView(RetrieveUpdateDestroyAPIView):
+class BoardDetailView(RetrieveUpdateDestroyAPIView):
     serializer_class = BoardDetailSerializer
     permission_classes = [IsAuthenticated, IsBoardMemberOrOwner]
     lookup_url_kwarg = 'board_id'

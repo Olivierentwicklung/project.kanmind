@@ -79,7 +79,7 @@ def test_retrieve_board_fails_when_not_authenticated(client, owned_board):
 
 @pytest.mark.django_db
 def test_retrieve_board_returns_403_when_user_has_no_access(
-    auth_user_client, private_board
+    auth_user_client, user_profile, private_board
 ):
     response = auth_user_client.get(f'{BOARDS_URL}{private_board.id}/')
 
@@ -96,10 +96,11 @@ def test_retrieve_board_returns_404_when_board_does_not_exist(auth_user_client):
 @pytest.mark.django_db
 def test_retrieve_board_returns_500_when_unexpected_error_happens(
     auth_user_client,
+    user_profile,
     owned_board,
 ):
     with patch(
-        'kanban_app.boards.api.views.Board.objects.get',
+        'kanban_app.boards.api.views.BoardDetailView.get_queryset',
         side_effect=Exception('Unexpected database error'),
     ):
         response = auth_user_client.get(f'{BOARDS_URL}{owned_board.id}/')
