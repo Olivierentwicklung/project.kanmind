@@ -196,13 +196,13 @@
 
       </div>
 
-      {% comment %} <button
+      <button
         id="themeToggle"
         type="button"
         class="btn btn-light btn-sm theme-toggle-btn d-inline-flex align-items-center"
       >
         <i class="fas fa-moon mr-1"></i>
-      </button> {% endcomment %}
+      </button>
 
     </div>
 
@@ -496,7 +496,7 @@
 
     const savedTheme =
       localStorage.getItem("admin-theme") ||
-      "light";
+      "dark";
 
     setTheme(savedTheme);
 
@@ -514,7 +514,7 @@
       );
     }
   })();
-</script> 
+</script>
 
 {% endblock %}
 ```
