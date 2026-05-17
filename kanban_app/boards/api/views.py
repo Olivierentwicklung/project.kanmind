@@ -11,7 +11,11 @@ from kanban_app.boards.models import Board
 from kanban_app.tasks.models import Task
 
 from .permissions import IsBoardMemberOrOwner
-from .serializers import BoardDetailSerializer, BoardListSerializer
+from .serializers import (
+    BoardDetailSerializer,
+    BoardListSerializer,
+    BoardUpdateSerializer,
+)
 
 
 class BoardListView(ListCreateAPIView):
@@ -75,16 +79,54 @@ class BoardListView(ListCreateAPIView):
 
 
 class BoardDetailView(RetrieveUpdateDestroyAPIView):
-    serializer_class = BoardDetailSerializer
-    permission_classes = [IsAuthenticated, IsBoardMemberOrOwner]
+    permission_classes = [
+        IsAuthenticated,
+        IsBoardMemberOrOwner,
+    ]
     lookup_url_kwarg = 'board_id'
+
+    def get_serializer_class(self):  # type: ignore
+        if self.request.method == 'PATCH':
+            return BoardUpdateSerializer
+
+        return BoardDetailSerializer
 
     def get_queryset(self):  # type: ignore
         tasks_queryset = Task.objects.select_related(
-            'assignee__user', 'reviewer__user'
-        ).annotate(comments_count=Count('comments', distinct=True))
+            'assignee__user',
+            'reviewer__user',
+        ).annotate(
+            comments_count=Count('comments', distinct=True),
+        )
 
         return Board.objects.select_related('owner').prefetch_related(
             'members__user',
             Prefetch('tasks', queryset=tasks_queryset),
+        )
+
+    def partial_update(self, request, *args, **kwargs):
+        instance = self.get_object()
+
+        serializer = self.get_serializer(
+            instance,
+            data=request.data,
+            partial=True,
+        )
+
+        if serializer.is_valid():
+            board = serializer.save()
+
+            response_serializer = BoardUpdateSerializer(
+                board,
+                context=self.get_serializer_context(),
+            )
+
+            return Response(
+                response_serializer.data,
+                status=status.HTTP_200_OK,
+            )
+
+        return Response(
+            serializer.errors,
+            status=status.HTTP_400_BAD_REQUEST,
         )

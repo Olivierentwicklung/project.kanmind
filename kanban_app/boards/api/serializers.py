@@ -95,3 +95,47 @@ class BoardDetailSerializer(serializers.ModelSerializer):
             'members',
             'tasks',
         ]
+
+
+class BoardUpdateSerializer(serializers.ModelSerializer):
+    members = serializers.PrimaryKeyRelatedField(
+        queryset=UserProfile.objects.all(),
+        many=True,
+        required=False,
+        allow_empty=False,
+    )
+
+    owner_data = BoardUserProfileSerializer(
+        source='owner',
+        read_only=True,
+    )
+
+    members_data = BoardUserProfileSerializer(
+        source='members',
+        many=True,
+        read_only=True,
+    )
+
+    class Meta:
+        model = Board
+        fields = [
+            'id',
+            'title',
+            'members',
+            'owner_data',
+            'members_data',
+        ]
+
+    def update(self, instance, validated_data):
+        members = validated_data.pop('members', None)
+
+        instance.title = validated_data.get(
+            'title',
+            instance.title,
+        )
+        instance.save()
+
+        if members is not None:
+            instance.members.set(members)
+
+        return instance
