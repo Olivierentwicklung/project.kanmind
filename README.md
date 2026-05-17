@@ -172,23 +172,51 @@ project.kanmind/
 │   ├── conftest.py
 │   ├── auth_app/
 │   │   ├── __init__.py
-│   │   ├── test_models.py
-│   │   ├── test_registration.py
-│   │   ├── test_login.py
-│   │   └── test_email_check.py
+│   │   ├── models/
+│   │   │   ├── __init__.py
+│   │   │   ├── test_models.py
+│   │   │
+│   │   └── endpoints/
+│   │       ├── __init__.py
+│   │       ├── test_registration.py
+│   │       ├── test_login.py
+│   │       └── test_email_check.py
 │   │
 │   └── kanban_app/
 │       ├── __init__.py
 │       ├── boards/
 │       │   ├── __init__.py
-│       │   ├── test_models.py
-│       │   └── test_boards_api.py
+│       │   ├── conftest.py
+│       │   ├── models/
+│       │   │   ├── __init__.py
+│       │   │   └── test_board_model.py
+│       │   │
+│       │   └── endpoints/
+│       │       ├── __init__.py
+│       │       ├── test_list_boards.py
+│       │       ├── test_create_board.py
+│       │       ├── test_retrieve_board.py
+│       │       ├── test_update_board.py
+│       │       └── test_delete_board.py
 │       │
 │       └── tasks/
 │           ├── __init__.py
-│           ├── test_models.py
-│           ├── test_tasks_api.py
-│           └── test_comments_api.py
+│           ├── conftest.py
+│           ├── models/
+│           │   ├── __init__.py
+│           │   ├── test_task_model.py
+│           │   └── test_comment_model.py
+│           │
+│           └── endpoints/
+│               ├── __init__.py
+│               ├── test_create_task.py
+│               ├── test_update_task.py
+│               ├── test_delete_task.py
+│               ├── test_list_assigned_tasks.py
+│               ├── test_list_review_tasks.py
+│               ├── test_list_comments.py
+│               ├── test_create_comment.py
+│               └── test_delete_comment.py
 │
 ├── pytest.ini
 └── requirements.txt
@@ -235,7 +263,17 @@ as author
 
 **🎥 Demo:**
 
+#### ERD
+
 ![Demo](z_screenshots/erd.drawio.png)
+
+#### Admin Panel
+
+![Demo](z_screenshots/admin_panel.png)
+
+#### Tests results WIP 1
+
+![Demo](z_screenshots/tests_results_wip_1.png)
 
 ---
 
