@@ -174,7 +174,7 @@ project.kanmind/
 │   │   ├── __init__.py
 │   │   ├── models/
 │   │   │   ├── __init__.py
-│   │   │   ├── test_models.py
+│   │   │   ├── test_user_profile_model.py
 │   │   │
 │   │   └── endpoints/
 │   │       ├── __init__.py
