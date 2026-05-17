@@ -292,6 +292,7 @@ as author
 - Django
 - Django REST Framework
 - DRF Token Authentication
+- DRF with Pytest
 - SQLite (default)
 
 ---
@@ -305,4 +306,5 @@ KanMind was designed as a modern backend project for practicing:
 - Authentication systems
 - ERD and relational modeling
 - RESTful API development
+- TDD
 - Kanban workflow concepts
