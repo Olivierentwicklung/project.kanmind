@@ -25,4 +25,5 @@ urlpatterns = [
         'api/',
         include('kanban_app.boards.api.urls'),
     ),
+    path('api/', include('kanban_app.tasks.api.urls')),
 ]
