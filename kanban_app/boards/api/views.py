@@ -130,3 +130,20 @@ class BoardDetailView(RetrieveUpdateDestroyAPIView):
             serializer.errors,
             status=status.HTTP_400_BAD_REQUEST,
         )
+
+    def destroy(self, request, *args, **kwargs):
+        board = self.get_object()
+        user_profile = request.user.userprofile
+
+        if board.owner != user_profile:
+            return Response(
+                {'detail': 'Only the board owner can delete this board.'},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+
+        board.delete()
+
+        return Response(
+            None,
+            status=status.HTTP_204_NO_CONTENT,
+        )
