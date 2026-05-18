@@ -263,7 +263,7 @@ class TaskCommentDetailView(DestroyAPIView):
     permission_classes = [IsAuthenticated]
     lookup_url_kwarg = 'comment_id'
 
-    def get_object(self):
+    def get_object(self):  # type: ignore
         task = get_object_or_404(
             Task,
             id=self.kwargs['task_id'],
