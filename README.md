@@ -214,9 +214,9 @@ project.kanmind/
 │               ├── test_delete_task.py
 │               ├── test_list_assigned_tasks.py
 │               ├── test_list_review_tasks.py
-│               ├── test_list_comments.py
-│               ├── test_create_comment.py
-│               └── test_delete_comment.py
+│               ├── test_list_task_comments.py
+│               ├── test_create_task_comment.py
+│               └── test_delete_task_comment.py
 │
 ├── pytest.ini
 └── requirements.txt

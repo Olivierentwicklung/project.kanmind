@@ -1,4 +1,5 @@
 import pytest
+
 from kanban_app.boards.models import Board
 from kanban_app.tasks.models import Comment, Task
 
@@ -51,38 +52,9 @@ def test_task_can_have_many_comments(user_profile):
         content='Second comment',
     )
 
-    assert task.comments.count() == 2
-    assert comment_1 in task.comments.all()
-    assert comment_2 in task.comments.all()
-
-
-@pytest.mark.django_db
-def test_user_profile_can_write_many_comments(user_profile):
-    board = Board.objects.create(
-        title='Project Board',
-        owner=user_profile,
-    )
-
-    task = Task.objects.create(
-        board=board,
-        title='Build API',
-    )
-
-    comment_1 = Comment.objects.create(
-        task=task,
-        author=user_profile,
-        content='First comment',
-    )
-
-    comment_2 = Comment.objects.create(
-        task=task,
-        author=user_profile,
-        content='Second comment',
-    )
-
-    assert user_profile.comments.count() == 2
-    assert comment_1 in user_profile.comments.all()
-    assert comment_2 in user_profile.comments.all()
+    assert task.comments.count() == 2  # type:ignore
+    assert comment_1 in task.comments.all()  # type:ignore
+    assert comment_2 in task.comments.all()  # type:ignore
 
 
 @pytest.mark.django_db

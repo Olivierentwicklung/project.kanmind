@@ -77,8 +77,10 @@ class Comment(models.Model):
 
     author = models.ForeignKey(
         UserProfile,
-        on_delete=models.CASCADE,
-        related_name='comments',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='created_comments',
     )
 
     content = models.TextField()
@@ -90,4 +92,7 @@ class Comment(models.Model):
     )
 
     def __str__(self):
-        return f'Comment by {self.author}'
+        if self.author:
+            return f'Comment by {self.author}'
+
+        return 'Comment by deleted user'

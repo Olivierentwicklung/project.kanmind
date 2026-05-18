@@ -2,7 +2,7 @@ from rest_framework import serializers
 from rest_framework.exceptions import PermissionDenied
 
 from auth_app.models import UserProfile
-from kanban_app.tasks.models import Task
+from kanban_app.tasks.models import Comment, Task
 
 
 class TaskUserProfileSerializer(serializers.ModelSerializer):
@@ -155,3 +155,16 @@ class TaskUpdateSerializer(serializers.ModelSerializer):
             )
 
         return attrs
+
+
+class CommentSerializer(serializers.ModelSerializer):
+    author = serializers.CharField(source='author.fullname', read_only=True)
+
+    class Meta:
+        model = Comment
+        fields = [
+            'id',
+            'created_at',
+            'author',
+            'content',
+        ]
