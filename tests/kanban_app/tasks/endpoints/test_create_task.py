@@ -132,6 +132,7 @@ def test_create_task_returns_403_when_user_is_not_board_member(
         title='Private Board',
         owner=second_user_profile,
     )
+    board.members.add(second_user_profile)
 
     payload = dict(
         board=board.id,  # type: ignore

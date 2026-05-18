@@ -1,4 +1,5 @@
 from rest_framework import serializers
+from rest_framework.exceptions import PermissionDenied
 
 from auth_app.models import UserProfile
 from kanban_app.tasks.models import Task
@@ -78,9 +79,7 @@ class TaskCreateSerializer(serializers.ModelSerializer):
             board.owner == user_profile
             or board.members.filter(id=user_profile.id).exists()
         ):
-            raise serializers.PermissionDenied(  # type:ignore
-                'You must be a board member to create tasks.'
-            )
+            raise PermissionDenied('You must be a board member to create tasks.')
 
         assignee = attrs.get('assignee')
         reviewer = attrs.get('reviewer')
