@@ -248,6 +248,9 @@ as members
 Board 1 ─── many Task
 
 UserProfile 1 ─── many Task
+as author
+
+UserProfile 1 ─── many Task
 as assignee
 
 UserProfile 1 ─── many Task
