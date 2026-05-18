@@ -24,6 +24,14 @@ class Task(models.Model):
         related_name='tasks',
     )
 
+    author = models.ForeignKey(
+        UserProfile,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='created_tasks',
+    )
+
     title = models.CharField(max_length=255)
     description = models.TextField(blank=True)
 

@@ -114,8 +114,10 @@ class TaskDetailView(RetrieveUpdateDestroyAPIView):
     def get_queryset(self):  # type:ignore
         return Task.objects.select_related(
             'board',
+            'board__owner',
             'assignee__user',
             'reviewer__user',
+            'author__user',
         ).annotate(
             comments_count=Count('comments', distinct=True),
         )
@@ -158,4 +160,26 @@ class TaskDetailView(RetrieveUpdateDestroyAPIView):
         return Response(
             serializer.errors,
             status=status.HTTP_400_BAD_REQUEST,
+        )
+
+    def destroy(self, request, *args, **kwargs):
+        task = self.get_object()
+        user_profile = request.user.userprofile
+
+        is_author = task.author == user_profile
+        is_board_owner = task.board.owner == user_profile
+
+        if not is_author and not is_board_owner:
+            return Response(
+                {
+                    'detail': 'Only the task creator or board owner can delete this task.'
+                },
+                status=status.HTTP_403_FORBIDDEN,
+            )
+
+        task.delete()
+
+        return Response(
+            None,
+            status=status.HTTP_204_NO_CONTENT,
         )
