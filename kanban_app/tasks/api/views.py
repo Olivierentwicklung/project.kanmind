@@ -5,6 +5,7 @@ from rest_framework.exceptions import PermissionDenied
 from rest_framework.generics import (
     CreateAPIView,
     ListAPIView,
+    ListCreateAPIView,
     RetrieveUpdateDestroyAPIView,
 )
 from rest_framework.permissions import IsAuthenticated
@@ -15,6 +16,7 @@ from kanban_app.tasks.models import Comment, Task
 
 from .permissions import IsTaskBoardMemberOrOwner
 from .serializers import (
+    CommentCreateSerializer,
     CommentSerializer,
     TaskCreateSerializer,
     TaskSerializer,
@@ -191,28 +193,66 @@ class TaskDetailView(RetrieveUpdateDestroyAPIView):
         )
 
 
-class TaskCommentsView(ListAPIView):
-    serializer_class = CommentSerializer
+class TaskCommentsView(ListCreateAPIView):
     permission_classes = [IsAuthenticated]
 
     def get_task(self):
         return get_object_or_404(Task, id=self.kwargs['task_id'])
 
-    def get_queryset(self):  # type:ignore
-        task = self.get_task()
+    def check_task_access(self, task):
         user_profile = self.request.user.userprofile  # type:ignore
         board = task.board
 
-        has_access = (
+        if not (
             board.owner == user_profile
             or board.members.filter(id=user_profile.id).exists()
-        )
+        ):
+            raise PermissionDenied(
+                'You must be a board member to access task comments.'
+            )
 
-        if not has_access:
-            raise PermissionDenied('You must be a board member to view task comments.')
+    def get_serializer_class(self):  # type:ignore
+        if self.request.method == 'POST':
+            return CommentCreateSerializer
+
+        return CommentSerializer
+
+    def get_queryset(self):  # type:ignore
+        task = self.get_task()
+        self.check_task_access(task)
 
         return (
             Comment.objects.filter(task=task)
             .select_related('author__user')
             .order_by('created_at')
+        )
+
+    def create(self, request, *args, **kwargs):
+        task = self.get_task()
+        self.check_task_access(task)
+
+        serializer = CommentCreateSerializer(
+            data=request.data,
+            context={
+                'request': request,
+                'task': task,
+            },
+        )
+
+        if serializer.is_valid():
+            comment = serializer.save()
+
+            response_serializer = CommentSerializer(
+                comment,
+                context=self.get_serializer_context(),
+            )
+
+            return Response(
+                response_serializer.data,
+                status=status.HTTP_201_CREATED,
+            )
+
+        return Response(
+            serializer.errors,
+            status=status.HTTP_400_BAD_REQUEST,
         )
