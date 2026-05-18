@@ -1,6 +1,7 @@
 from django.db.models import Count
 from django.shortcuts import get_object_or_404
 from rest_framework import status
+from rest_framework.exceptions import PermissionDenied
 from rest_framework.generics import (
     CreateAPIView,
     ListAPIView,
@@ -10,10 +11,15 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 
 from kanban_app.boards.models import Board
-from kanban_app.tasks.models import Task
+from kanban_app.tasks.models import Comment, Task
 
 from .permissions import IsTaskBoardMemberOrOwner
-from .serializers import TaskCreateSerializer, TaskSerializer, TaskUpdateSerializer
+from .serializers import (
+    CommentSerializer,
+    TaskCreateSerializer,
+    TaskSerializer,
+    TaskUpdateSerializer,
+)
 
 
 class AssignedTasksView(ListAPIView):
@@ -182,4 +188,31 @@ class TaskDetailView(RetrieveUpdateDestroyAPIView):
         return Response(
             None,
             status=status.HTTP_204_NO_CONTENT,
+        )
+
+
+class TaskCommentsView(ListAPIView):
+    serializer_class = CommentSerializer
+    permission_classes = [IsAuthenticated]
+
+    def get_task(self):
+        return get_object_or_404(Task, id=self.kwargs['task_id'])
+
+    def get_queryset(self):  # type:ignore
+        task = self.get_task()
+        user_profile = self.request.user.userprofile  # type:ignore
+        board = task.board
+
+        has_access = (
+            board.owner == user_profile
+            or board.members.filter(id=user_profile.id).exists()
+        )
+
+        if not has_access:
+            raise PermissionDenied('You must be a board member to view task comments.')
+
+        return (
+            Comment.objects.filter(task=task)
+            .select_related('author__user')
+            .order_by('created_at')
         )
