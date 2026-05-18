@@ -96,6 +96,14 @@ class TaskCreateSerializer(serializers.ModelSerializer):
 
         return attrs
 
+    def create(self, validated_data):
+        user_profile = self.context['request'].user.userprofile
+
+        return Task.objects.create(
+            author=user_profile,
+            **validated_data,
+        )
+
 
 class TaskUpdateSerializer(serializers.ModelSerializer):
     assignee_id = serializers.PrimaryKeyRelatedField(
