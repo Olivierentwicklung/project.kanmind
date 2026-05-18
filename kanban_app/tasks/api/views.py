@@ -25,3 +25,23 @@ class AssignedTasksView(ListAPIView):
                 comments_count=Count('comments', distinct=True),
             )
         )
+
+
+class ReviewTasksView(ListAPIView):
+    serializer_class = TaskSerializer
+    permission_classes = [IsAuthenticated]
+
+    def get_queryset(self):  # type: ignore
+        user_profile = self.request.user.userprofile  # type: ignore
+
+        return (
+            Task.objects.filter(reviewer=user_profile)
+            .select_related(
+                'board',
+                'assignee__user',
+                'reviewer__user',
+            )
+            .annotate(
+                comments_count=Count('comments', distinct=True),
+            )
+        )
