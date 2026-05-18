@@ -245,11 +245,9 @@ def test_update_task_fails_with_invalid_field_values(
         priority=Task.Priority.LOW,
     )
 
-    payload = dict(field=value)
-
     response = auth_user_client.patch(
         f'{TASKS_URL}{task.id}/',  # type:ignore
-        payload,
+        {field: value},
         format='json',
     )
 
