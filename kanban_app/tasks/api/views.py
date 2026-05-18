@@ -4,6 +4,7 @@ from rest_framework import status
 from rest_framework.exceptions import PermissionDenied
 from rest_framework.generics import (
     CreateAPIView,
+    DestroyAPIView,
     ListAPIView,
     ListCreateAPIView,
     RetrieveUpdateDestroyAPIView,
@@ -255,4 +256,35 @@ class TaskCommentsView(ListCreateAPIView):
         return Response(
             serializer.errors,
             status=status.HTTP_400_BAD_REQUEST,
+        )
+
+
+class TaskCommentDetailView(DestroyAPIView):
+    permission_classes = [IsAuthenticated]
+    lookup_url_kwarg = 'comment_id'
+
+    def get_object(self):  # type: ignore
+        task = get_object_or_404(
+            Task,
+            id=self.kwargs['task_id'],
+        )
+
+        return get_object_or_404(
+            Comment,
+            id=self.kwargs['comment_id'],
+            task=task,
+        )
+
+    def destroy(self, request, *args, **kwargs):
+        comment = self.get_object()
+        user_profile = request.user.userprofile
+
+        if comment.author != user_profile:
+            raise PermissionDenied('Only the comment author can delete this comment.')
+
+        comment.delete()
+
+        return Response(
+            None,
+            status=status.HTTP_204_NO_CONTENT,
         )
