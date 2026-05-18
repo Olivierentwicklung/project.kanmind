@@ -168,3 +168,21 @@ class CommentSerializer(serializers.ModelSerializer):
             'author',
             'content',
         ]
+
+
+class CommentCreateSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Comment
+        fields = [
+            'content',
+        ]
+
+    def create(self, validated_data):
+        task = self.context['task']
+        author = self.context['request'].user.userprofile
+
+        return Comment.objects.create(
+            task=task,
+            author=author,
+            **validated_data,
+        )
