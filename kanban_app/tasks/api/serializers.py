@@ -6,6 +6,10 @@ from kanban_app.tasks.models import Comment, Task
 
 
 class TaskUserProfileSerializer(serializers.ModelSerializer):
+    """
+    Serializer for task-related user information.
+    """
+
     email = serializers.EmailField(source='user.email')
 
     class Meta:
@@ -18,6 +22,10 @@ class TaskUserProfileSerializer(serializers.ModelSerializer):
 
 
 class TaskSerializer(serializers.ModelSerializer):
+    """
+    Serializer for task overview and detail responses.
+    """
+
     assignee = TaskUserProfileSerializer(read_only=True)
     reviewer = TaskUserProfileSerializer(read_only=True)
     comments_count = serializers.IntegerField(read_only=True)
@@ -39,6 +47,10 @@ class TaskSerializer(serializers.ModelSerializer):
 
 
 class TaskCreateSerializer(serializers.ModelSerializer):
+    """
+    Serializer for task creation.
+    """
+
     assignee_id = serializers.PrimaryKeyRelatedField(
         queryset=UserProfile.objects.all(),
         source='assignee',
@@ -75,6 +87,7 @@ class TaskCreateSerializer(serializers.ModelSerializer):
         if board is None:
             return attrs
 
+        # Only board members or owners can create tasks
         if not (
             board.owner == user_profile
             or board.members.filter(id=user_profile.id).exists()
@@ -84,11 +97,13 @@ class TaskCreateSerializer(serializers.ModelSerializer):
         assignee = attrs.get('assignee')
         reviewer = attrs.get('reviewer')
 
+        # Assigned users must belong to the same board
         if assignee and not board.members.filter(id=assignee.id).exists():
             raise serializers.ValidationError(
                 {'assignee_id': 'Assignee must be a board member.'}
             )
 
+        # reviewer users must belong to the same board
         if reviewer and not board.members.filter(id=reviewer.id).exists():
             raise serializers.ValidationError(
                 {'reviewer_id': 'Reviewer must be a board member.'}
@@ -97,6 +112,7 @@ class TaskCreateSerializer(serializers.ModelSerializer):
         return attrs
 
     def create(self, validated_data):
+        # Automatically assign the authenticated user as task author
         user_profile = self.context['request'].user.userprofile
 
         return Task.objects.create(
@@ -106,6 +122,10 @@ class TaskCreateSerializer(serializers.ModelSerializer):
 
 
 class TaskUpdateSerializer(serializers.ModelSerializer):
+    """
+    Serializer for updating existing tasks.
+    """
+
     assignee_id = serializers.PrimaryKeyRelatedField(
         queryset=UserProfile.objects.all(),
         source='assignee',
@@ -134,21 +154,24 @@ class TaskUpdateSerializer(serializers.ModelSerializer):
         ]
 
     def validate(self, attrs):
-        if 'board' in self.initial_data:  # type:ignore
+        # Prevent tasks from being moved to another board
+        if 'board' in self.initial_data:  # type: ignore
             raise serializers.ValidationError(
                 {'board': 'Changing the board is not allowed.'}
             )
 
-        board = self.instance.board  # type:ignore
+        board = self.instance.board  # type: ignore
 
         assignee = attrs.get('assignee')
         reviewer = attrs.get('reviewer')
 
+        # Assigned users must belong to the same board
         if assignee and not board.members.filter(id=assignee.id).exists():
             raise serializers.ValidationError(
                 {'assignee_id': 'Assignee must be a board member.'}
             )
 
+        # reviewer users must belong to the same board
         if reviewer and not board.members.filter(id=reviewer.id).exists():
             raise serializers.ValidationError(
                 {'reviewer_id': 'Reviewer must be a board member.'}
@@ -158,7 +181,14 @@ class TaskUpdateSerializer(serializers.ModelSerializer):
 
 
 class CommentSerializer(serializers.ModelSerializer):
-    author = serializers.CharField(source='author.fullname', read_only=True)
+    """
+    Serializer for task comments.
+    """
+
+    author = serializers.CharField(
+        source='author.fullname',
+        read_only=True,
+    )
 
     class Meta:
         model = Comment
@@ -171,6 +201,10 @@ class CommentSerializer(serializers.ModelSerializer):
 
 
 class CommentCreateSerializer(serializers.ModelSerializer):
+    """
+    Serializer for creating task comments.
+    """
+
     class Meta:
         model = Comment
         fields = [

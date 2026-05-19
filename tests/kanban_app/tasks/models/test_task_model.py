@@ -1,4 +1,5 @@
 import pytest
+
 from kanban_app.boards.models import Board
 from kanban_app.tasks.models import Task
 
@@ -46,9 +47,9 @@ def test_board_can_have_many_tasks(user_profile):
         title='Task Two',
     )
 
-    assert board.tasks.count() == 2
-    assert task_1 in board.tasks.all()
-    assert task_2 in board.tasks.all()
+    assert board.tasks.count() == 2  # type:ignore
+    assert task_1 in board.tasks.all()  # type:ignore
+    assert task_2 in board.tasks.all()  # type:ignore
 
 
 @pytest.mark.django_db

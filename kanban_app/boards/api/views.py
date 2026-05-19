@@ -19,12 +19,17 @@ from .serializers import (
 
 
 class BoardListView(ListCreateAPIView):
+    """
+    List all accessible boards and create new boards.
+    """
+
     serializer_class = BoardListSerializer
     permission_classes = [IsAuthenticated]
 
     def get_queryset(self):  # type: ignore
         user_profile = self.request.user.userprofile  # type: ignore
 
+        # User can access owned boards and boards where they are a member
         accessible_board_ids = Board.objects.filter(
             Q(owner=user_profile) | Q(members=user_profile)
         ).values('id')
@@ -40,6 +45,7 @@ class BoardListView(ListCreateAPIView):
         if serializer.is_valid():
             board = serializer.save()
 
+            # Reload board with annotations for response serialization
             annotated_board = self.get_annotated_queryset().get(id=board.id)  # type: ignore
 
             response_serializer = BoardListSerializer(
@@ -58,9 +64,15 @@ class BoardListView(ListCreateAPIView):
         )
 
     def get_annotated_queryset(self):
+        """
+        Return boards with aggregated statistics and optimized relations.
+        """
+
         return (
-            Board.objects.select_related('owner')  # optimization ForeignKey
-            .annotate(  # optimization ManyToMany and reverse FK
+            # Optimize ForeignKey joins
+            Board.objects.select_related('owner')
+            .annotate(
+                # Aggregate board statistics
                 member_count=Count('members', distinct=True),
                 ticket_count=Count('tasks', distinct=True),
                 tasks_to_do_count=Count(
@@ -79,10 +91,15 @@ class BoardListView(ListCreateAPIView):
 
 
 class BoardDetailView(RetrieveUpdateDestroyAPIView):
+    """
+    Retrieve, update, or delete a specific board.
+    """
+
     permission_classes = [
         IsAuthenticated,
         IsBoardMemberOrOwner,
     ]
+
     lookup_url_kwarg = 'board_id'
 
     def get_serializer_class(self):  # type: ignore
@@ -92,6 +109,7 @@ class BoardDetailView(RetrieveUpdateDestroyAPIView):
         return BoardDetailSerializer
 
     def get_queryset(self):  # type: ignore
+        # Optimize task relations and comment aggregation
         tasks_queryset = Task.objects.select_related(
             'assignee__user',
             'reviewer__user',
@@ -135,6 +153,7 @@ class BoardDetailView(RetrieveUpdateDestroyAPIView):
         board = self.get_object()
         user_profile = request.user.userprofile
 
+        # Only board owners are allowed to delete boards
         if board.owner != user_profile:
             return Response(
                 {'detail': 'Only the board owner can delete this board.'},

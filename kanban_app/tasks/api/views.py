@@ -26,6 +26,10 @@ from .serializers import (
 
 
 class AssignedTasksView(ListAPIView):
+    """
+    List tasks assigned to the authenticated user.
+    """
+
     serializer_class = TaskSerializer
     permission_classes = [IsAuthenticated]
 
@@ -46,6 +50,10 @@ class AssignedTasksView(ListAPIView):
 
 
 class ReviewTasksView(ListAPIView):
+    """
+    List tasks assigned to the authenticated reviewer.
+    """
+
     serializer_class = TaskSerializer
     permission_classes = [IsAuthenticated]
 
@@ -66,12 +74,17 @@ class ReviewTasksView(ListAPIView):
 
 
 class TaskCreateView(CreateAPIView):
+    """
+    Create a new task.
+    """
+
     serializer_class = TaskCreateSerializer
     permission_classes = [IsAuthenticated]
 
     def create(self, request, *args, **kwargs):
         board_id = request.data.get('board')
 
+        # Ensure referenced board exists
         if board_id is not None:
             get_object_or_404(Board, id=board_id)
 
@@ -80,6 +93,7 @@ class TaskCreateView(CreateAPIView):
         if serializer.is_valid():
             task = serializer.save()
 
+            # Reload task with optimized relations and annotations
             annotated_task = (
                 Task.objects.select_related(
                     'board',
@@ -107,6 +121,10 @@ class TaskCreateView(CreateAPIView):
 
 
 class TaskDetailView(RetrieveUpdateDestroyAPIView):
+    """
+    Retrieve, update, or delete a task.
+    """
+
     permission_classes = [
         IsAuthenticated,
         IsTaskBoardMemberOrOwner,
@@ -121,6 +139,7 @@ class TaskDetailView(RetrieveUpdateDestroyAPIView):
         return TaskSerializer
 
     def get_queryset(self):  # type:ignore
+        # Optimize related object loading and comment aggregation
         return Task.objects.select_related(
             'board',
             'board__owner',
@@ -144,6 +163,7 @@ class TaskDetailView(RetrieveUpdateDestroyAPIView):
         if serializer.is_valid():
             updated_task = serializer.save()
 
+            # Reload updated task with response annotations
             response_task = (
                 Task.objects.select_related(
                     'board',
@@ -178,10 +198,13 @@ class TaskDetailView(RetrieveUpdateDestroyAPIView):
         is_author = task.author == user_profile
         is_board_owner = task.board.owner == user_profile
 
+        # Only task authors or board owners can delete tasks
         if not is_author and not is_board_owner:
             return Response(
                 {
-                    'detail': 'Only the task creator or board owner can delete this task.'
+                    'detail': (
+                        'Only the task creator or board owner can delete this task.'
+                    )
                 },
                 status=status.HTTP_403_FORBIDDEN,
             )
@@ -195,12 +218,23 @@ class TaskDetailView(RetrieveUpdateDestroyAPIView):
 
 
 class TaskCommentsView(ListCreateAPIView):
+    """
+    List and create comments for a task.
+    """
+
     permission_classes = [IsAuthenticated]
 
     def get_task(self):
-        return get_object_or_404(Task, id=self.kwargs['task_id'])
+        return get_object_or_404(
+            Task,
+            id=self.kwargs['task_id'],
+        )
 
     def check_task_access(self, task):
+        """
+        Ensure the user has access to the task board.
+        """
+
         user_profile = self.request.user.userprofile  # type:ignore
         board = task.board
 
@@ -260,6 +294,10 @@ class TaskCommentsView(ListCreateAPIView):
 
 
 class TaskCommentDetailView(DestroyAPIView):
+    """
+    Delete a task comment.
+    """
+
     permission_classes = [IsAuthenticated]
     lookup_url_kwarg = 'comment_id'
 
@@ -279,6 +317,7 @@ class TaskCommentDetailView(DestroyAPIView):
         comment = self.get_object()
         user_profile = request.user.userprofile
 
+        # Only the comment author can delete the comment
         if comment.author != user_profile:
             raise PermissionDenied('Only the comment author can delete this comment.')
 

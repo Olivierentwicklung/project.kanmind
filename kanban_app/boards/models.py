@@ -2,10 +2,12 @@ from django.db import models
 
 from auth_app.models import UserProfile
 
-# Create your models here.
-
 
 class Board(models.Model):
+    """
+    Represents a collaborative project board.
+    """
+
     title = models.CharField(max_length=255)
 
     owner = models.ForeignKey(

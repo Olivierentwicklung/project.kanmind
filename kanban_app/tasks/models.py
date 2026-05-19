@@ -3,10 +3,12 @@ from django.db import models
 from auth_app.models import UserProfile
 from kanban_app.boards.models import Board
 
-# Create your models here.
-
 
 class Task(models.Model):
+    """
+    Represents a task within a board.
+    """
+
     class Status(models.TextChoices):
         TODO = 'TODO', 'to-do'
         IN_PROGRESS = 'IN_PROGRESS', 'in-progress'
@@ -73,6 +75,10 @@ class Task(models.Model):
 
 
 class Comment(models.Model):
+    """
+    Represents a comment attached to a task.
+    """
+
     created_at = models.DateTimeField(auto_now_add=True)
 
     author = models.ForeignKey(
