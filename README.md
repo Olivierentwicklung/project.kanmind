@@ -65,6 +65,23 @@ python manage.py runserver
 
 ---
 
+## 🧪 Example Usage
+
+- Get the Django administration in Browser
+
+  ```bash
+   In Browser: http://127.0.0.1:8000/admin/
+  ```
+
+- Superuser credentials
+
+  ```bash
+   Username: superuser
+   Password: a
+  ```
+
+---
+
 ## 🔐 Authentication Endpoints
 
 | Method | Endpoint             | Description              |
