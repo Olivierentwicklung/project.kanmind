@@ -2,6 +2,10 @@ from rest_framework.permissions import BasePermission
 
 
 class IsTaskBoardMemberOrOwner(BasePermission):
+    """
+    Allow access only to task board owners or board members.
+    """
+
     def has_object_permission(self, request, view, obj):
         user_profile = request.user.userprofile
         board = obj.board
