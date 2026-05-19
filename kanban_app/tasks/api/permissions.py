@@ -7,6 +7,9 @@ class IsTaskBoardMemberOrOwner(BasePermission):
     """
 
     def has_object_permission(self, request, view, obj):
+        """
+        Allow access only to task board owners or board members.
+        """
         user_profile = request.user.userprofile
         board = obj.board
 

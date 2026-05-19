@@ -34,6 +34,8 @@ class AssignedTasksView(ListAPIView):
     permission_classes = [IsAuthenticated]
 
     def get_queryset(self):  # type: ignore
+        """Get List tasks assigned to the authenticated user."""
+
         user_profile = self.request.user.userprofile  # type: ignore
 
         return (
@@ -58,6 +60,8 @@ class ReviewTasksView(ListAPIView):
     permission_classes = [IsAuthenticated]
 
     def get_queryset(self):  # type: ignore
+        """Get List tasks assigned to the authenticated reviewer."""
+
         user_profile = self.request.user.userprofile  # type: ignore
 
         return (
@@ -82,6 +86,8 @@ class TaskCreateView(CreateAPIView):
     permission_classes = [IsAuthenticated]
 
     def create(self, request, *args, **kwargs):
+        """Create a new task"""
+
         board_id = request.data.get('board')
 
         # Ensure referenced board exists
@@ -133,12 +139,16 @@ class TaskDetailView(RetrieveUpdateDestroyAPIView):
     lookup_url_kwarg = 'task_id'
 
     def get_serializer_class(self):  # type:ignore
+        """Choose the right serializer"""
+
         if self.request.method == 'PATCH':
             return TaskUpdateSerializer
 
         return TaskSerializer
 
     def get_queryset(self):  # type:ignore
+        """Get the task"""
+
         # Optimize related object loading and comment aggregation
         return Task.objects.select_related(
             'board',
@@ -151,6 +161,8 @@ class TaskDetailView(RetrieveUpdateDestroyAPIView):
         )
 
     def partial_update(self, request, *args, **kwargs):
+        """Update the task"""
+
         task = self.get_object()
 
         serializer = TaskUpdateSerializer(
@@ -192,6 +204,8 @@ class TaskDetailView(RetrieveUpdateDestroyAPIView):
         )
 
     def destroy(self, request, *args, **kwargs):
+        """Delete the task"""
+
         task = self.get_object()
         user_profile = request.user.userprofile
 
@@ -225,6 +239,8 @@ class TaskCommentsView(ListCreateAPIView):
     permission_classes = [IsAuthenticated]
 
     def get_task(self):
+        """Get the task by Id"""
+
         return get_object_or_404(
             Task,
             id=self.kwargs['task_id'],
@@ -247,12 +263,16 @@ class TaskCommentsView(ListCreateAPIView):
             )
 
     def get_serializer_class(self):  # type:ignore
+        """Choose the right serializer"""
+
         if self.request.method == 'POST':
             return CommentCreateSerializer
 
         return CommentSerializer
 
     def get_queryset(self):  # type:ignore
+        """Get the task comments"""
+
         task = self.get_task()
         self.check_task_access(task)
 
@@ -263,6 +283,8 @@ class TaskCommentsView(ListCreateAPIView):
         )
 
     def create(self, request, *args, **kwargs):
+        """Create a task comment"""
+
         task = self.get_task()
         self.check_task_access(task)
 
@@ -302,6 +324,8 @@ class TaskCommentDetailView(DestroyAPIView):
     lookup_url_kwarg = 'comment_id'
 
     def get_object(self):  # type: ignore
+        """Get the task comment by id"""
+
         task = get_object_or_404(
             Task,
             id=self.kwargs['task_id'],
@@ -314,6 +338,8 @@ class TaskCommentDetailView(DestroyAPIView):
         )
 
     def destroy(self, request, *args, **kwargs):
+        """Delete a task comment"""
+
         comment = self.get_object()
         user_profile = request.user.userprofile
 
