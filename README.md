@@ -43,6 +43,8 @@ KanMind provides authentication, board management, task workflows, and comment c
 ```bash
 git clone https://github.com/Olivierentwicklung/project.kanmind.git
 
+cd project.kanmind
+
 python -m venv .venv
 
 # Linux / macOS
@@ -71,13 +73,6 @@ python manage.py runserver
 
   ```bash
    In Browser: http://127.0.0.1:8000/admin/
-  ```
-
-- Superuser credentials
-
-  ```bash
-   Username: superuser
-   Password: a
   ```
 
 ---
