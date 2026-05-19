@@ -26,6 +26,8 @@ class BoardListSerializer(serializers.ModelSerializer):
     owner_id = serializers.IntegerField(source='owner.id', read_only=True)
 
     class Meta:
+        """return values of the BoardListSerializer"""
+
         model = Board
         fields = [
             'id',
@@ -39,6 +41,8 @@ class BoardListSerializer(serializers.ModelSerializer):
         ]
 
     def create(self, validated_data):
+        """Create a new board"""
+
         # ManyToMany relations must be assigned after object creation
         members = validated_data.pop('members')
 
@@ -63,6 +67,8 @@ class BoardUserProfileSerializer(serializers.ModelSerializer):
     email = serializers.EmailField(source='user.email')
 
     class Meta:
+        """return values of the BoardUserProfileSerializer"""
+
         model = UserProfile
         fields = [
             'id',
@@ -81,6 +87,8 @@ class BoardTaskSerializer(serializers.ModelSerializer):
     comments_count = serializers.IntegerField(read_only=True)
 
     class Meta:
+        """return values of the BoardTaskSerializer"""
+
         model = Task
         fields = [
             'id',
@@ -105,6 +113,8 @@ class BoardDetailSerializer(serializers.ModelSerializer):
     tasks = BoardTaskSerializer(many=True, read_only=True)
 
     class Meta:
+        """return values of the BoardDetailSerializer"""
+
         model = Board
         fields = [
             'id',
@@ -139,6 +149,8 @@ class BoardUpdateSerializer(serializers.ModelSerializer):
     )
 
     class Meta:
+        """return values of the BoardUpdateSerializer"""
+
         model = Board
         fields = [
             'id',
@@ -149,6 +161,8 @@ class BoardUpdateSerializer(serializers.ModelSerializer):
         ]
 
     def update(self, instance, validated_data):
+        """Update board data and members."""
+
         members = validated_data.pop('members', None)
 
         instance.title = validated_data.get(

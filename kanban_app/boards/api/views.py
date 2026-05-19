@@ -27,6 +27,8 @@ class BoardListView(ListCreateAPIView):
     permission_classes = [IsAuthenticated]
 
     def get_queryset(self):  # type: ignore
+        """Get list of boards"""
+
         user_profile = self.request.user.userprofile  # type: ignore
 
         # User can access owned boards and boards where they are a member
@@ -37,6 +39,8 @@ class BoardListView(ListCreateAPIView):
         return self.get_annotated_queryset().filter(id__in=accessible_board_ids)
 
     def create(self, request, *args, **kwargs):
+        """Create a Board"""
+
         serializer = BoardListSerializer(
             data=request.data,
             context=self.get_serializer_context(),
@@ -103,12 +107,16 @@ class BoardDetailView(RetrieveUpdateDestroyAPIView):
     lookup_url_kwarg = 'board_id'
 
     def get_serializer_class(self):  # type: ignore
+        """Choose the right serializer"""
+
         if self.request.method == 'PATCH':
             return BoardUpdateSerializer
 
         return BoardDetailSerializer
 
     def get_queryset(self):  # type: ignore
+        """Get the board"""
+
         # Optimize task relations and comment aggregation
         tasks_queryset = Task.objects.select_related(
             'assignee__user',
@@ -123,6 +131,8 @@ class BoardDetailView(RetrieveUpdateDestroyAPIView):
         )
 
     def partial_update(self, request, *args, **kwargs):
+        """Update the board"""
+
         instance = self.get_object()
 
         serializer = self.get_serializer(
@@ -150,6 +160,8 @@ class BoardDetailView(RetrieveUpdateDestroyAPIView):
         )
 
     def destroy(self, request, *args, **kwargs):
+        """Delete the board"""
+
         board = self.get_object()
         user_profile = request.user.userprofile
 

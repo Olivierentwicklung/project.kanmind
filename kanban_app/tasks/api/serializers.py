@@ -13,6 +13,8 @@ class TaskUserProfileSerializer(serializers.ModelSerializer):
     email = serializers.EmailField(source='user.email')
 
     class Meta:
+        """return values of the TaskUserProfileSerializer"""
+
         model = UserProfile
         fields = [
             'id',
@@ -31,6 +33,8 @@ class TaskSerializer(serializers.ModelSerializer):
     comments_count = serializers.IntegerField(read_only=True)
 
     class Meta:
+        """return values of the TaskSerializer"""
+
         model = Task
         fields = [
             'id',
@@ -66,6 +70,8 @@ class TaskCreateSerializer(serializers.ModelSerializer):
     )
 
     class Meta:
+        """return values of the TaskCreateSerializer"""
+
         model = Task
         fields = [
             'id',
@@ -80,6 +86,13 @@ class TaskCreateSerializer(serializers.ModelSerializer):
         ]
 
     def validate(self, attrs):
+        """
+        Validate that:
+        - Only board members or owners can create tasks
+        - Assigned users must belong to the same board
+        - reviewer users must belong to the same board
+        """
+
         request = self.context['request']
         user_profile = request.user.userprofile
         board = attrs.get('board')
@@ -112,6 +125,8 @@ class TaskCreateSerializer(serializers.ModelSerializer):
         return attrs
 
     def create(self, validated_data):
+        """Create a Task"""
+
         # Automatically assign the authenticated user as task author
         user_profile = self.context['request'].user.userprofile
 
@@ -141,6 +156,8 @@ class TaskUpdateSerializer(serializers.ModelSerializer):
     )
 
     class Meta:
+        """return values of the TaskUpdateSerializer"""
+
         model = Task
         fields = [
             'id',
@@ -154,6 +171,13 @@ class TaskUpdateSerializer(serializers.ModelSerializer):
         ]
 
     def validate(self, attrs):
+        """
+        Validate that:
+        - Prevent tasks from being moved to another board
+        - Assigned users must belong to the same board
+        - reviewer users must belong to the same board
+        """
+
         # Prevent tasks from being moved to another board
         if 'board' in self.initial_data:  # type: ignore
             raise serializers.ValidationError(
@@ -191,6 +215,8 @@ class CommentSerializer(serializers.ModelSerializer):
     )
 
     class Meta:
+        """return values of the CommentSerializer"""
+
         model = Comment
         fields = [
             'id',
@@ -206,12 +232,16 @@ class CommentCreateSerializer(serializers.ModelSerializer):
     """
 
     class Meta:
+        """return values of the CommentCreateSerializer"""
+
         model = Comment
         fields = [
             'content',
         ]
 
     def create(self, validated_data):
+        """Create a Task Comment"""
+
         task = self.context['task']
         author = self.context['request'].user.userprofile
 

@@ -10,15 +10,19 @@ class Task(models.Model):
     """
 
     class Status(models.TextChoices):
-        TODO = 'TODO', 'to-do'
-        IN_PROGRESS = 'IN_PROGRESS', 'in-progress'
-        REVIEW = 'REVIEW', 'review'
-        DONE = 'DONE', 'done'
+        """Status list of a Task"""
+
+        TODO = 'to-do'
+        IN_PROGRESS = 'in-progress'
+        REVIEW = 'review'
+        DONE = 'done'
 
     class Priority(models.TextChoices):
-        LOW = 'LOW', 'low'
-        MEDIUM = 'MEDIUM', 'medium'
-        HIGH = 'HIGH', 'high'
+        """Priority list of a Task"""
+
+        LOW = 'low'
+        MEDIUM = 'medium'
+        HIGH = 'high'
 
     board = models.ForeignKey(
         Board,

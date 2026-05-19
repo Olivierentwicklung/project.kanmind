@@ -21,6 +21,8 @@ class RegistrationView(APIView):
     permission_classes = [AllowAny]
 
     def post(self, request):
+        """Register a new user and return an authentication token."""
+
         serializer = RegistrationSerializer(data=request.data)
 
         if serializer.is_valid():
@@ -53,6 +55,9 @@ class LoginView(ObtainAuthToken):
     serializer_class = LoginSerializer
 
     def post(self, request):
+        """
+        Authenticate user credentials and return an auth token.
+        """
         serializer = self.serializer_class(
             data=request.data,
             context={'request': request},
@@ -87,6 +92,9 @@ class EmailCheckView(APIView):
     permission_classes = [IsAuthenticated]
 
     def get(self, request):
+        """
+        Check whether a user exists by email address.
+        """
         serializer = EmailCheckSerializer(data=request.query_params)
 
         if not serializer.is_valid():
