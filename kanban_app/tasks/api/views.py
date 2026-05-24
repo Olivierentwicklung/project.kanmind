@@ -12,7 +12,6 @@ from rest_framework.generics import (
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 
-from kanban_app.boards.models import Board
 from kanban_app.tasks.models import Comment, Task
 
 from .permissions import IsTaskBoardMemberOrOwner
@@ -85,45 +84,29 @@ class TaskCreateView(CreateAPIView):
     serializer_class = TaskCreateSerializer
     permission_classes = [IsAuthenticated]
 
-    def create(self, request, *args, **kwargs):
-        """Create a new task"""
+    def get_queryset(self):  # type:ignore
+        """
+        Define the optimized queryset used to reload the created instance.
+        """
+        return Task.objects.select_related(
+            'board',
+            'assignee__user',
+            'reviewer__user',
+        ).annotate(comments_count=Count('comments', distinct=True))
 
-        board_id = request.data.get('board')
+    def perform_create(self, serializer):
+        """
+        Save the instance and immediately refresh it from the optimized queryset.
+        """
+        # 1. Save the instance to the database
+        instance = serializer.save()
 
-        # Ensure referenced board exists
-        if board_id is not None:
-            get_object_or_404(Board, id=board_id)
+        # 2. Re-fetch the saved object using the optimized get_queryset() definition
+        optimized_instance = self.get_queryset().get(pk=instance.pk)
 
-        serializer = self.get_serializer(data=request.data)
-
-        if serializer.is_valid():
-            task = serializer.save()
-
-            # Reload task with optimized relations and annotations
-            annotated_task = (
-                Task.objects.select_related(
-                    'board',
-                    'assignee__user',
-                    'reviewer__user',
-                )
-                .annotate(comments_count=Count('comments', distinct=True))
-                .get(id=task.id)
-            )
-
-            response_serializer = TaskSerializer(
-                annotated_task,
-                context=self.get_serializer_context(),
-            )
-
-            return Response(
-                response_serializer.data,
-                status=status.HTTP_201_CREATED,
-            )
-
-        return Response(
-            serializer.errors,
-            status=status.HTTP_400_BAD_REQUEST,
-        )
+        # 3. Swap the raw instance with the optimized instance inside the serializer
+        # This forces DRF to use the pre-fetched & annotated data for the JSON response
+        serializer.instance = optimized_instance
 
 
 class TaskDetailView(RetrieveUpdateDestroyAPIView):
