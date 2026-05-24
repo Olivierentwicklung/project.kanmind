@@ -1,3 +1,4 @@
+from django.db import transaction
 from rest_framework import serializers
 
 from auth_app.models import UserProfile
@@ -10,6 +11,7 @@ class BoardListSerializer(serializers.ModelSerializer):
     Serializer for listing and creating boards.
     """
 
+    # Allow clients to pass members IDs when creating or updating
     members = serializers.PrimaryKeyRelatedField(
         queryset=UserProfile.objects.all(),
         many=True,
@@ -41,20 +43,24 @@ class BoardListSerializer(serializers.ModelSerializer):
         ]
 
     def create(self, validated_data):
-        """Create a new board"""
+        """Create a new board instance and assign relations atomically (POST)."""
 
-        # ManyToMany relations must be assigned after object creation
+        # Pop relational data out before saving the base model
         members = validated_data.pop('members')
 
         # The authenticated user becomes the board owner
         owner = self.context['request'].user.userprofile
 
-        board = Board.objects.create(
-            owner=owner,
-            **validated_data,
-        )
+        # Run mutations safely inside an atomic transaction
+        with transaction.atomic():
+            board = Board.objects.create(
+                owner=owner,
+                **validated_data,
+            )
 
-        board.members.set(members)
+            # Now that the row has an ID, we can safely write to the junction table
+            if members is not None:
+                board.members.set(members)
 
         return board
 
@@ -130,6 +136,7 @@ class BoardUpdateSerializer(serializers.ModelSerializer):
     Serializer for updating board data and members.
     """
 
+    # Allow clients to pass members IDs when creating or updating
     members = serializers.PrimaryKeyRelatedField(
         queryset=UserProfile.objects.all(),
         many=True,
@@ -160,18 +167,21 @@ class BoardUpdateSerializer(serializers.ModelSerializer):
             'members_data',
         ]
 
-    def update(self, instance, validated_data):
-        """Update board data and members."""
+        def update(self, instance, validated_data):
+            """
+            Update an existing Board instance and relations atomically (PUT/PATCH).
+            """
+            # Pop relational data out before saving the base model
+            members = validated_data.pop('members', None)
 
-        members = validated_data.pop('members', None)
+            # Run mutations safely inside an atomic transaction
+            with transaction.atomic():
+                instance.title = validated_data.get('title', instance.title)
+                instance.save()
 
-        instance.title = validated_data.get(
-            'title',
-            instance.title,
-        )
-        instance.save()
+                # Now that the row has an ID, we can safely write to the junction table
+                if members is not None:
+                    instance.members.set(members)
 
-        if members is not None:
-            instance.members.set(members)
-
-        return instance
+            # Return clean instance
+            return instance

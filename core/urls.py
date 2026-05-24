@@ -27,3 +27,5 @@ urlpatterns = [
     ),
     path('api/', include('kanban_app.tasks.api.urls')),
 ]
+
+urlpatterns += [path('silk/', include('silk.urls', namespace='silk'))]
