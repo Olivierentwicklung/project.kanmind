@@ -1,6 +1,5 @@
 from django.db.models import Count
 from django.shortcuts import get_object_or_404
-from rest_framework import status
 from rest_framework.exceptions import PermissionDenied
 from rest_framework.generics import (
     CreateAPIView,
@@ -10,7 +9,6 @@ from rest_framework.generics import (
     RetrieveUpdateDestroyAPIView,
 )
 from rest_framework.permissions import IsAuthenticated
-from rest_framework.response import Response
 
 from kanban_app.tasks.models import Comment, Task
 
@@ -178,48 +176,65 @@ class TaskDetailView(RetrieveUpdateDestroyAPIView):
 
 class TaskCommentsView(ListCreateAPIView):
     """
-    List and create comments for a task.
+    List and create comments for a task using optimized query flows.
     """
 
     permission_classes = [IsAuthenticated]
 
-    def get_task(self):
-        """Get the task by Id"""
+    def get_task_and_check_access(self) -> Task:
+        """
+        Fetch the task and enforce board membership permissions in a single cached step.
+        """
+        # Return the task instantly if it was already resolved during
+        # the request lifecycle
+        if hasattr(self, '_cached_task'):
+            return self._cached_task
 
-        return get_object_or_404(
-            Task,
-            id=self.kwargs['task_id'],
+        # Fetch task and follow relation to board to avoid N+1 queries
+        task = get_object_or_404(
+            Task.objects.select_related('board'), id=self.kwargs['task_id']
         )
 
-    def check_task_access(self, task):
-        """
-        Ensure the user has access to the task board.
-        """
-
-        user_profile = self.request.user.userprofile  # type:ignore
+        user_profile = getattr(self.request.user, 'userprofile', None)
         board = task.board
 
-        if not (
-            board.owner == user_profile
-            or board.members.filter(id=user_profile.id).exists()
-        ):
+        # Extract valid user IDs cleanly to satisfy Pylance/Ruff
+        valid_user_ids = set(board.members.values_list('id', flat=True))
+        owner_id = getattr(board, 'owner_id', None)
+        if owner_id:
+            valid_user_ids.add(owner_id)
+
+        # Security Access Enforcement
+        if not user_profile or user_profile.id not in valid_user_ids:
             raise PermissionDenied(
                 'You must be a board member to access task comments.'
             )
 
-    def get_serializer_class(self):  # type:ignore
-        """Choose the right serializer"""
+        # Cache instance on the view thread to prevent double-database fetching
+        self._cached_task = task
+        return task
 
+    def get_serializer_class(self):  # type: ignore
+        """Choose the right serializer dynamically based on HTTP method."""
         if self.request.method == 'POST':
             return CommentCreateSerializer
-
         return CommentSerializer
 
-    def get_queryset(self):  # type:ignore
-        """Get the task comments"""
+    def get_serializer_context(self):
+        """
+        Inject the verified task object directly into the serializer context.
+        This provides the data needed for your CommentCreateSerializer
+        super().create() hook.
+        """
+        context = super().get_serializer_context()
+        context['task'] = self.get_task_and_check_access()
+        return context
 
-        task = self.get_task()
-        self.check_task_access(task)
+    def get_queryset(self):  # type: ignore
+        """
+        Return the optimized list of comments for the targeted task.
+        """
+        task = self.get_task_and_check_access()
 
         return (
             Comment.objects.filter(task=task)
@@ -227,74 +242,59 @@ class TaskCommentsView(ListCreateAPIView):
             .order_by('created_at')
         )
 
-    def create(self, request, *args, **kwargs):
-        """Create a task comment"""
+    def perform_create(self, serializer):
+        """
+        Save the comment and instantly refresh its representation using
+        the optimized serialization layout.
+        """
+        # Save using the data already stored inside serializer.context['task']
+        comment = serializer.save()
 
-        task = self.get_task()
-        self.check_task_access(task)
-
-        serializer = CommentCreateSerializer(
-            data=request.data,
-            context={
-                'request': request,
-                'task': task,
-            },
+        # Re-fetch the comment with all optimized select_related fields loaded
+        optimized_comment = Comment.objects.select_related('author__user').get(
+            pk=comment.pk
         )
 
-        if serializer.is_valid():
-            comment = serializer.save()
-
-            response_serializer = CommentSerializer(
-                comment,
-                context=self.get_serializer_context(),
-            )
-
-            return Response(
-                response_serializer.data,
-                status=status.HTTP_201_CREATED,
-            )
-
-        return Response(
-            serializer.errors,
-            status=status.HTTP_400_BAD_REQUEST,
-        )
+        # Swap raw object with optimized data structure so DRF uses the correct
+        # format in the JSON response
+        serializer.instance = optimized_comment
 
 
 class TaskCommentDetailView(DestroyAPIView):
     """
-    Delete a task comment.
+    Delete a task comment safely with ownership checks.
     """
 
     permission_classes = [IsAuthenticated]
     lookup_url_kwarg = 'comment_id'
 
-    def get_object(self):  # type: ignore
-        """Get the task comment by id"""
-
+    def get_object(self) -> Comment:  # type: ignore
+        """
+        Get the task comment by id while ensuring it belongs to the specified task.
+        """
+        # Ensure the task exists first
         task = get_object_or_404(
             Task,
             id=self.kwargs['task_id'],
         )
 
+        # Retrieve and return the specific comment object
         return get_object_or_404(
             Comment,
             id=self.kwargs['comment_id'],
             task=task,
         )
 
-    def destroy(self, request, *args, **kwargs):
-        """Delete a task comment"""
-
-        comment = self.get_object()
-        user_profile = request.user.userprofile
+    def perform_destroy(self, instance: Comment) -> None:
+        """
+        Enforce author ownership restrictions and handle the database deletion natively.
+        """
+        # Safely fetch userprofile from request.user to keep Pylance and Ruff happy
+        user_profile = getattr(self.request.user, 'userprofile', None)
 
         # Only the comment author can delete the comment
-        if comment.author != user_profile:
+        if instance.author != user_profile:
             raise PermissionDenied('Only the comment author can delete this comment.')
 
-        comment.delete()
-
-        return Response(
-            None,
-            status=status.HTTP_204_NO_CONTENT,
-        )
+        # Execute the database deletion routine
+        instance.delete()
