@@ -311,26 +311,25 @@ class CommentSerializer(serializers.ModelSerializer):
 
 
 class CommentCreateSerializer(serializers.ModelSerializer):
-    """
-    Serializer for creating task comments.
-    """
+    """Serializer used for handling comment validation and creation."""
 
     class Meta:
-        """return values of the CommentCreateSerializer"""
-
         model = Comment
-        fields = [
-            'content',
-        ]
+        fields = ['id', 'content']  # Ensure 'id' is present in fields array
 
     def create(self, validated_data):
-        """Create a Task Comment"""
-
+        """Create a Task Comment using context injections."""
         task = self.context['task']
-        author = self.context['request'].user.userprofile
+        author = getattr(self.context['request'].user, 'userprofile', None)
 
-        return Comment.objects.create(
-            task=task,
-            author=author,
-            **validated_data,
-        )
+        validated_data['task'] = task
+        validated_data['author'] = author
+
+        return super().create(validated_data)
+
+    def to_representation(self, instance):  # type:ignore
+        """Morph output data to use the complete read serializer format."""
+        # Import inside method if needed to prevent circular import loops
+        from .serializers import CommentSerializer
+
+        return CommentSerializer(instance, context=self.context).data
