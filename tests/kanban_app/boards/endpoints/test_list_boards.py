@@ -1,5 +1,3 @@
-from unittest.mock import patch
-
 import pytest
 
 BOARDS_URL = '/api/boards/'
@@ -83,12 +81,10 @@ def test_list_boards_fails_when_not_authenticated(client):
 
 @pytest.mark.django_db
 def test_list_boards_returns_500_when_unexpected_error_happens(
-    auth_user_client,
+    auth_user_client, force_db_crash
 ):
-    with patch(
-        'kanban_app.boards.api.views.Board.objects',
-        side_effect=Exception('Unexpected database error'),
-    ):
+
+    with force_db_crash:
         response = auth_user_client.get(BOARDS_URL)
 
     assert response.status_code == 500

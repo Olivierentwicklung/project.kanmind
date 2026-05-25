@@ -28,7 +28,7 @@ class BoardListView(ListCreateAPIView):
     def get_queryset(self):  # type: ignore
         """Defines the optimized query path used by ALL HTTP verbs."""
 
-        user_profile = self.request.user.userprofile  # type: ignore
+        user_profile = getattr(self.request.user, 'userprofile', None)
 
         # User can access owned boards and boards where they are a member
         accessible_board_ids = Board.objects.filter(
@@ -112,7 +112,7 @@ class BoardDetailView(RetrieveUpdateDestroyAPIView):
     def perform_destroy(self, instance):
         """Delete the board (Strictly owner only)."""
 
-        user_profile = self.request.user.userprofile  # type:ignore
+        user_profile = getattr(self.request.user, 'userprofile', None)
 
         if instance.owner != user_profile:
             raise PermissionDenied('Only the board owner can delete this board.')
