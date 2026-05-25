@@ -1,4 +1,3 @@
-from django.db import transaction
 from rest_framework import serializers
 
 from auth_app.models import UserProfile
@@ -43,26 +42,14 @@ class BoardListSerializer(serializers.ModelSerializer):
         ]
 
     def create(self, validated_data):
-        """Create a new board instance and assign relations atomically (POST)."""
+        """Create a new board instance with the current user as owner."""
 
-        # Pop relational data out before saving the base model
-        members = validated_data.pop('members')
+        # Inject the authenticated user as the owner directly into validated_data
+        user_profile = getattr(self.context['request'].user, 'userprofile', None)
+        validated_data['owner'] = user_profile
 
-        # The authenticated user becomes the board owner
-        owner = self.context['request'].user.userprofile
-
-        # Run mutations safely inside an atomic transaction
-        with transaction.atomic():
-            board = Board.objects.create(
-                owner=owner,
-                **validated_data,
-            )
-
-            # Now that the row has an ID, we can safely write to the junction table
-            if members is not None:
-                board.members.set(members)
-
-        return board
+        # Let DRF handle the M2M popping, saving, and junction table writing natively
+        return super().create(validated_data)
 
 
 class BoardUserProfileSerializer(serializers.ModelSerializer):
@@ -166,22 +153,3 @@ class BoardUpdateSerializer(serializers.ModelSerializer):
             'owner_data',
             'members_data',
         ]
-
-        def update(self, instance, validated_data):
-            """
-            Update an existing Board instance and relations atomically (PUT/PATCH).
-            """
-            # Pop relational data out before saving the base model
-            members = validated_data.pop('members', None)
-
-            # Run mutations safely inside an atomic transaction
-            with transaction.atomic():
-                instance.title = validated_data.get('title', instance.title)
-                instance.save()
-
-                # Now that the row has an ID, we can safely write to the junction table
-                if members is not None:
-                    instance.members.set(members)
-
-            # Return clean instance
-            return instance

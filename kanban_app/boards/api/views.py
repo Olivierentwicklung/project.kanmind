@@ -112,7 +112,7 @@ class BoardDetailView(RetrieveUpdateDestroyAPIView):
     def perform_destroy(self, instance):
         """Delete the board (Strictly owner only)."""
 
-        user_profile = self.request.user.userprofile  # type:ignore
+        user_profile = getattr(self.request.user, 'userprofile', None)
 
         if instance.owner != user_profile:
             raise PermissionDenied('Only the board owner can delete this board.')
