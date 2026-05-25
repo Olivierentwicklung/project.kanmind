@@ -56,6 +56,8 @@ class TaskCreateSerializer(serializers.ModelSerializer):
     Serializer for task creation.
     """
 
+    # Links an optional UserProfile ID to the 'assignee' model relation
+    # and allows null values.
     assignee_id = serializers.PrimaryKeyRelatedField(
         queryset=UserProfile.objects.all(),
         source='assignee',
@@ -63,6 +65,8 @@ class TaskCreateSerializer(serializers.ModelSerializer):
         allow_null=True,
     )
 
+    # Links an optional UserProfile ID to the 'reviewer' model relation
+    # and allows null values.
     reviewer_id = serializers.PrimaryKeyRelatedField(
         queryset=UserProfile.objects.all(),
         source='reviewer',
@@ -70,6 +74,7 @@ class TaskCreateSerializer(serializers.ModelSerializer):
         allow_null=True,
     )
 
+    # Computed read-only field mapping to a property/annotation on your model
     comments_count = serializers.IntegerField(read_only=True, default=0)
 
     class Meta:
@@ -148,8 +153,12 @@ class TaskCreateSerializer(serializers.ModelSerializer):
     def create(self, validated_data):
         """Create a Task with the current user context as the author."""
 
-        user_profile = self.context['request'].user.userprofile
+        # Inject the authenticated user as the author directly into validated_data
+        user_profile = getattr(self.context['request'].user, 'userprofile', None)
         validated_data['author'] = user_profile
+
+        # Let DRF handle the relational popping, saving, and junction table
+        # writing natively
         return super().create(validated_data)
 
     def to_representation(self, instance):
@@ -183,6 +192,8 @@ class TaskUpdateSerializer(serializers.ModelSerializer):
     Serializer for updating existing tasks.
     """
 
+    # Links an optional UserProfile ID to the 'assignee' model relation
+    # and allows null values.
     assignee_id = serializers.PrimaryKeyRelatedField(
         queryset=UserProfile.objects.all(),
         source='assignee',
@@ -190,12 +201,17 @@ class TaskUpdateSerializer(serializers.ModelSerializer):
         allow_null=True,
     )
 
+    # Links an optional UserProfile ID to the 'reviewer' model relation
+    # and allows null values.
     reviewer_id = serializers.PrimaryKeyRelatedField(
         queryset=UserProfile.objects.all(),
         source='reviewer',
         required=False,
         allow_null=True,
     )
+
+    # Computed read-only field mapping to a property/annotation on your model
+    comments_count = serializers.IntegerField(read_only=True, default=0)
 
     class Meta:
         """return values of the TaskUpdateSerializer"""
@@ -210,6 +226,7 @@ class TaskUpdateSerializer(serializers.ModelSerializer):
             'assignee_id',
             'reviewer_id',
             'due_date',
+            'comments_count',
         ]
 
     def validate(self, attrs):
@@ -244,6 +261,31 @@ class TaskUpdateSerializer(serializers.ModelSerializer):
             )
 
         return attrs
+
+    def to_representation(self, instance):
+        """Dynamically morph keys to match the nested JSON response format."""
+
+        # 1. Get standard serialized dictionary data
+        representation = super().to_representation(instance)
+
+        # 2. Swap out flat _id fields for nested detailed object structures
+        representation['assignee'] = (
+            TaskUserProfileSerializer(instance.assignee).data
+            if instance.assignee
+            else None
+        )
+
+        representation['reviewer'] = (
+            TaskUserProfileSerializer(instance.reviewer).data
+            if instance.reviewer
+            else None
+        )
+
+        # 3. Clean up the flat keys so they don't pollute the final output
+        representation.pop('assignee_id', None)
+        representation.pop('reviewer_id', None)
+
+        return representation
 
 
 class CommentSerializer(serializers.ModelSerializer):
