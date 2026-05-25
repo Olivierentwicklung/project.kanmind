@@ -1,5 +1,4 @@
 from django.db.models import Count, Prefetch, Q
-from rest_framework.exceptions import PermissionDenied
 from rest_framework.generics import (
     ListCreateAPIView,
     RetrieveUpdateDestroyAPIView,
@@ -9,7 +8,7 @@ from rest_framework.permissions import IsAuthenticated
 from kanban_app.boards.models import Board
 from kanban_app.tasks.models import Task
 
-from .permissions import IsBoardMemberOrOwner
+from .permissions import BoardPermission
 from .serializers import (
     BoardDetailSerializer,
     BoardListSerializer,
@@ -72,7 +71,7 @@ class BoardListView(ListCreateAPIView):
 class BoardDetailView(RetrieveUpdateDestroyAPIView):
     """Retrieve, update, or delete a specific board."""
 
-    permission_classes = [IsAuthenticated, IsBoardMemberOrOwner]
+    permission_classes = [IsAuthenticated, BoardPermission]
     lookup_url_kwarg = 'board_id'
 
     def get_serializer_class(self):  # type: ignore
@@ -108,13 +107,3 @@ class BoardDetailView(RetrieveUpdateDestroyAPIView):
 
         # Assign the fresh data back to the serializer for an optimized JSON payload
         serializer.instance = optimized_instance
-
-    def perform_destroy(self, instance):
-        """Delete the board (Strictly owner only)."""
-
-        user_profile = getattr(self.request.user, 'userprofile', None)
-
-        if instance.owner != user_profile:
-            raise PermissionDenied('Only the board owner can delete this board.')
-
-        instance.delete()
