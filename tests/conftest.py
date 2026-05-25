@@ -1,5 +1,7 @@
 import pytest
 from django.contrib.auth.models import User
+from django.db import connection
+from django.db.utils import OperationalError
 from rest_framework.authtoken.models import Token
 from rest_framework.test import APIClient
 
@@ -20,6 +22,22 @@ FAKE_THIRD_USER_PROFILE_DATA = dict(
     email='thirdexample@mail.com',
     password='thirdexamplePassword123',
 )
+
+
+class ForceDatabaseCrashWrapper:
+    """A clean interceptor that forces any SQL execution to crash instantly."""
+
+    def __call__(self, execute, sql, params, many, context):
+        raise OperationalError('Unexpected database error')
+
+
+@pytest.fixture
+def force_db_crash():
+    """
+    Fixture to force all database queries to fail within its context.
+    This wraps the entire request execution block, forcing a 500 status response
+    """
+    return connection.execute_wrapper(ForceDatabaseCrashWrapper())
 
 
 @pytest.fixture

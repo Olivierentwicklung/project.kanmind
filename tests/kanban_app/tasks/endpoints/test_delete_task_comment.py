@@ -1,5 +1,3 @@
-from unittest.mock import patch
-
 import pytest
 
 from kanban_app.boards.models import Board
@@ -189,8 +187,7 @@ def test_delete_task_comment_returns_404_when_comment_does_not_belong_to_task(
 
 @pytest.mark.django_db
 def test_delete_task_comment_returns_500_when_unexpected_error_happens(
-    auth_user_client,
-    user_profile,
+    auth_user_client, user_profile, force_db_crash
 ):
     board = Board.objects.create(
         title='Project Board',
@@ -209,10 +206,7 @@ def test_delete_task_comment_returns_500_when_unexpected_error_happens(
         content='Comment to delete',
     )
 
-    with patch(
-        'kanban_app.tasks.api.views.TaskCommentDetailView.get_object',
-        side_effect=Exception('Unexpected database error'),
-    ):
+    with force_db_crash:
         response = auth_user_client.delete(
             f'{TASKS_URL}{task.id}/comments/{comment.id}/',  # type:ignore
         )

@@ -1,5 +1,3 @@
-from unittest.mock import patch
-
 import pytest
 
 from kanban_app.boards.models import Board
@@ -174,8 +172,7 @@ def test_list_task_comments_are_sorted_chronologically(
 
 @pytest.mark.django_db
 def test_list_task_comments_returns_500_when_unexpected_error_happens(
-    auth_user_client,
-    user_profile,
+    auth_user_client, user_profile, force_db_crash
 ):
     board = Board.objects.create(
         title='Project Board',
@@ -188,10 +185,7 @@ def test_list_task_comments_returns_500_when_unexpected_error_happens(
         title='Task with comments',
     )
 
-    with patch(
-        'kanban_app.tasks.api.views.TaskCommentsView.get_queryset',
-        side_effect=Exception('Unexpected database error'),
-    ):
+    with force_db_crash:
         response = auth_user_client.get(
             f'{TASKS_URL}{task.id}/comments/',  # type:ignore
         )

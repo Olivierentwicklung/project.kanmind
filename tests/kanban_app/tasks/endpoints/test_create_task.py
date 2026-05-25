@@ -1,5 +1,3 @@
-from unittest.mock import patch
-
 import pytest
 
 from kanban_app.boards.models import Board
@@ -354,8 +352,7 @@ def test_create_task_fails_when_reviewer_is_not_board_member(
 
 @pytest.mark.django_db
 def test_create_task_returns_500_when_unexpected_error_happens(
-    auth_user_client,
-    user_profile,
+    auth_user_client, user_profile, force_db_crash
 ):
     board = Board.objects.create(
         title='Project Board',
@@ -371,10 +368,7 @@ def test_create_task_returns_500_when_unexpected_error_happens(
         priority=Task.Priority.MEDIUM,
     )
 
-    with patch(
-        'kanban_app.tasks.api.serializers.Task.objects.create',
-        side_effect=Exception('Unexpected database error'),
-    ):
+    with force_db_crash:
         response = auth_user_client.post(
             TASKS_URL,
             payload,

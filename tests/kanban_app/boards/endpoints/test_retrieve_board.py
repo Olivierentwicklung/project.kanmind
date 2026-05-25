@@ -1,5 +1,3 @@
-from unittest.mock import patch
-
 import pytest
 
 from kanban_app.tasks.models import Task
@@ -95,14 +93,9 @@ def test_retrieve_board_returns_404_when_board_does_not_exist(auth_user_client):
 
 @pytest.mark.django_db
 def test_retrieve_board_returns_500_when_unexpected_error_happens(
-    auth_user_client,
-    user_profile,
-    owned_board,
+    auth_user_client, user_profile, owned_board, force_db_crash
 ):
-    with patch(
-        'kanban_app.boards.api.views.BoardDetailView.get_queryset',
-        side_effect=Exception('Unexpected database error'),
-    ):
+    with force_db_crash:
         response = auth_user_client.get(f'{BOARDS_URL}{owned_board.id}/')
 
     assert response.status_code == 500

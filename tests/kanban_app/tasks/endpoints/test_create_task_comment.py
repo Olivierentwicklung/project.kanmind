@@ -1,5 +1,3 @@
-from unittest.mock import patch
-
 import pytest
 
 from kanban_app.boards.models import Board
@@ -184,8 +182,7 @@ def test_create_task_comment_returns_404_when_task_does_not_exist(
 
 @pytest.mark.django_db
 def test_create_task_comment_returns_500_when_unexpected_error_happens(
-    auth_user_client,
-    user_profile,
+    auth_user_client, user_profile, force_db_crash
 ):
     board = Board.objects.create(
         title='Project Board',
@@ -202,10 +199,7 @@ def test_create_task_comment_returns_500_when_unexpected_error_happens(
         'content': 'This is a new task comment.',
     }
 
-    with patch(
-        'kanban_app.tasks.api.serializers.Comment.objects.create',
-        side_effect=Exception('Unexpected database error'),
-    ):
+    with force_db_crash:
         response = auth_user_client.post(
             f'{TASKS_URL}{task.id}/comments/',  # type:ignore
             payload,

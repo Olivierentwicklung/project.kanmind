@@ -1,5 +1,3 @@
-from unittest.mock import patch
-
 import pytest
 
 from kanban_app.boards.models import Board
@@ -83,14 +81,9 @@ def test_delete_board_returns_404_when_board_does_not_exist(auth_user_client):
 
 @pytest.mark.django_db
 def test_delete_board_returns_500_when_unexpected_error_happens(
-    auth_user_client,
-    owned_board,
-    user_profile,
+    auth_user_client, owned_board, user_profile, force_db_crash
 ):
-    with patch(
-        'kanban_app.boards.api.views.BoardDetailView.get_queryset',
-        side_effect=Exception('Unexpected database error'),
-    ):
+    with force_db_crash:
         response = auth_user_client.delete(
             f'{BOARDS_URL}{owned_board.id}/',
         )

@@ -1,5 +1,3 @@
-from unittest.mock import patch
-
 import pytest
 
 BOARDS_URL = '/api/boards/'
@@ -207,9 +205,7 @@ def test_update_board_fails_when_member_does_not_exist(
 
 @pytest.mark.django_db
 def test_update_board_returns_500_when_unexpected_error_happens(
-    auth_user_client,
-    owned_board,
-    user_profile,
+    auth_user_client, owned_board, user_profile, force_db_crash
 ):
     payload = dict(
         title='Changed title',
@@ -218,10 +214,7 @@ def test_update_board_returns_500_when_unexpected_error_happens(
         ],
     )
 
-    with patch(
-        'kanban_app.boards.api.views.BoardDetailView.get_queryset',
-        side_effect=Exception('Unexpected database error'),
-    ):
+    with force_db_crash:
         response = auth_user_client.patch(
             f'{BOARDS_URL}{owned_board.id}/',
             payload,
