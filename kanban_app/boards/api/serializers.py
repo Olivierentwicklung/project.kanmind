@@ -48,7 +48,8 @@ class BoardListSerializer(serializers.ModelSerializer):
         user_profile = getattr(self.context['request'].user, 'userprofile', None)
         validated_data['owner'] = user_profile
 
-        # Let DRF handle the M2M popping, saving, and junction table writing natively
+        # Let DRF handle the relational popping, saving, and junction table
+        # writing natively
         return super().create(validated_data)
 
 
