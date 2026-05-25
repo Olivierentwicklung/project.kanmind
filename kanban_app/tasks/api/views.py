@@ -35,7 +35,7 @@ class AssignedTasksView(ListAPIView):
     def get_queryset(self):  # type: ignore
         """Get List tasks assigned to the authenticated user."""
 
-        user_profile = self.request.user.userprofile  # type: ignore
+        user_profile = getattr(self.request.user, 'userprofile', None)
 
         return (
             Task.objects.filter(assignee=user_profile)
@@ -61,7 +61,7 @@ class ReviewTasksView(ListAPIView):
     def get_queryset(self):  # type: ignore
         """Get List tasks assigned to the authenticated reviewer."""
 
-        user_profile = self.request.user.userprofile  # type: ignore
+        user_profile = getattr(self.request.user, 'userprofile', None)
 
         return (
             Task.objects.filter(reviewer=user_profile)
@@ -130,7 +130,7 @@ class TaskDetailView(RetrieveUpdateDestroyAPIView):
         return TaskSerializer
 
     def get_queryset(self):  # type:ignore
-        """Get the task"""
+        """Defines the optimized query path used by ALL HTTP verbs."""
 
         # Optimize related object loading and comment aggregation
         return Task.objects.select_related(
@@ -143,75 +143,37 @@ class TaskDetailView(RetrieveUpdateDestroyAPIView):
             comments_count=Count('comments', distinct=True),
         )
 
-    def partial_update(self, request, *args, **kwargs):
-        """Update the task"""
+    def perform_update(self, serializer):
+        """Handles Post-Write Optimization at the View Layer."""
+        # A. Serializer runs database mutation safely
+        instance = serializer.save()
 
-        task = self.get_object()
+        # B. View re-fetches instance using the main query path.
+        # This safely blows away old prefetch caches and re-links joins in 1 step!
+        optimized_instance = self.get_queryset().get(pk=instance.pk)
 
-        serializer = TaskUpdateSerializer(
-            task,
-            data=request.data,
-            partial=True,
-            context=self.get_serializer_context(),
-        )
+        # C. Assign the fresh data back to the serializer for an optimized JSON payload
+        serializer.instance = optimized_instance
 
-        if serializer.is_valid():
-            updated_task = serializer.save()
+    def perform_destroy(self, instance):
+        """
+        Enforce deletion permissions and delete the task.
+        """
+        user_profile = getattr(self.request.user, 'userprofile', None)
 
-            # Reload updated task with response annotations
-            response_task = (
-                Task.objects.select_related(
-                    'board',
-                    'assignee__user',
-                    'reviewer__user',
-                )
-                .annotate(
-                    comments_count=Count('comments', distinct=True),
-                )
-                .get(id=updated_task.id)
-            )
+        is_author = instance.author == user_profile
 
-            response_serializer = TaskSerializer(
-                response_task,
-                context=self.get_serializer_context(),
-            )
-
-            return Response(
-                response_serializer.data,
-                status=status.HTTP_200_OK,
-            )
-
-        return Response(
-            serializer.errors,
-            status=status.HTTP_400_BAD_REQUEST,
-        )
-
-    def destroy(self, request, *args, **kwargs):
-        """Delete the task"""
-
-        task = self.get_object()
-        user_profile = request.user.userprofile
-
-        is_author = task.author == user_profile
-        is_board_owner = task.board.owner == user_profile
+        # Safely fetch owner using getattr to satisfy Pylance/Ruff
+        board_owner = getattr(instance.board, 'owner', None)
+        is_board_owner = board_owner == user_profile
 
         # Only task authors or board owners can delete tasks
         if not is_author and not is_board_owner:
-            return Response(
-                {
-                    'detail': (
-                        'Only the task creator or board owner can delete this task.'
-                    )
-                },
-                status=status.HTTP_403_FORBIDDEN,
+            raise PermissionDenied(
+                'Only the task creator or board owner can delete this task.'
             )
 
-        task.delete()
-
-        return Response(
-            None,
-            status=status.HTTP_204_NO_CONTENT,
-        )
+        instance.delete()
 
 
 class TaskCommentsView(ListCreateAPIView):
