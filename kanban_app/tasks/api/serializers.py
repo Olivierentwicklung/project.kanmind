@@ -329,7 +329,5 @@ class CommentCreateSerializer(serializers.ModelSerializer):
 
     def to_representation(self, instance):  # type:ignore
         """Morph output data to use the complete read serializer format."""
-        # Import inside method if needed to prevent circular import loops
-        from .serializers import CommentSerializer
 
         return CommentSerializer(instance, context=self.context).data
