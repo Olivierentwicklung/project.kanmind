@@ -12,7 +12,7 @@ from rest_framework.permissions import IsAuthenticated
 
 from kanban_app.tasks.models import Comment, Task
 
-from .permissions import IsTaskBoardMemberOrOwner
+from .permissions import CommentPermission, TaskPermission
 from .serializers import (
     CommentCreateSerializer,
     CommentSerializer,
@@ -112,10 +112,7 @@ class TaskDetailView(RetrieveUpdateDestroyAPIView):
     Retrieve, update, or delete a task.
     """
 
-    permission_classes = [
-        IsAuthenticated,
-        IsTaskBoardMemberOrOwner,
-    ]
+    permission_classes = [IsAuthenticated, TaskPermission]
 
     lookup_url_kwarg = 'task_id'
 
@@ -153,33 +150,13 @@ class TaskDetailView(RetrieveUpdateDestroyAPIView):
         # C. Assign the fresh data back to the serializer for an optimized JSON payload
         serializer.instance = optimized_instance
 
-    def perform_destroy(self, instance):
-        """
-        Enforce deletion permissions and delete the task.
-        """
-        user_profile = getattr(self.request.user, 'userprofile', None)
-
-        is_author = instance.author == user_profile
-
-        # Safely fetch owner using getattr to satisfy Pylance/Ruff
-        board_owner = getattr(instance.board, 'owner', None)
-        is_board_owner = board_owner == user_profile
-
-        # Only task authors or board owners can delete tasks
-        if not is_author and not is_board_owner:
-            raise PermissionDenied(
-                'Only the task creator or board owner can delete this task.'
-            )
-
-        instance.delete()
-
 
 class TaskCommentsView(ListCreateAPIView):
     """
     List and create comments for a task using optimized query flows.
     """
 
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsAuthenticated, TaskPermission, CommentPermission]
 
     def get_task_and_check_access(self) -> Task:
         """
@@ -265,13 +242,14 @@ class TaskCommentDetailView(DestroyAPIView):
     Delete a task comment safely with ownership checks.
     """
 
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsAuthenticated, CommentPermission]
     lookup_url_kwarg = 'comment_id'
 
     def get_object(self) -> Comment:  # type: ignore
         """
         Get the task comment by id while ensuring it belongs to the specified task.
         """
+
         # Ensure the task exists first
         task = get_object_or_404(
             Task,
@@ -279,22 +257,13 @@ class TaskCommentDetailView(DestroyAPIView):
         )
 
         # Retrieve and return the specific comment object
-        return get_object_or_404(
+        comment = get_object_or_404(
             Comment,
             id=self.kwargs['comment_id'],
             task=task,
         )
 
-    def perform_destroy(self, instance: Comment) -> None:
-        """
-        Enforce author ownership restrictions and handle the database deletion natively.
-        """
-        # Safely fetch userprofile from request.user to keep Pylance and Ruff happy
-        user_profile = getattr(self.request.user, 'userprofile', None)
+        # IMPORTANT
+        self.check_object_permissions(self.request, comment)
 
-        # Only the comment author can delete the comment
-        if instance.author != user_profile:
-            raise PermissionDenied('Only the comment author can delete this comment.')
-
-        # Execute the database deletion routine
-        instance.delete()
+        return comment
