@@ -1,10 +1,13 @@
 from django.contrib.auth.models import User
-from rest_framework import status
+from django.db import transaction
+from rest_framework import generics, status
 from rest_framework.authtoken.models import Token
 from rest_framework.authtoken.views import ObtainAuthToken
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
+
+from auth_app.models import UserProfile
 
 from .serializers import (
     EmailCheckSerializer,
@@ -13,37 +16,35 @@ from .serializers import (
 )
 
 
-class RegistrationView(APIView):
-    """
-    Register a new user and return an authentication token.
-    """
+class RegistrationView(generics.CreateAPIView):
+    """API view used to register a new user."""
 
+    serializer_class = RegistrationSerializer
     permission_classes = [AllowAny]
 
-    def post(self, request):
-        """Register a new user and return an authentication token."""
+    @transaction.atomic
+    def perform_create(self, serializer):
+        """Create a User, a UserProfile, and a Token."""
 
-        serializer = RegistrationSerializer(data=request.data)
+        fullname = serializer.validated_data['fullname']
+        email = serializer.validated_data['email']
+        password = serializer.validated_data['password']
 
-        if serializer.is_valid():
-            user = serializer.save()
-
-            # Create token for authenticated API access
-            token, _ = Token.objects.get_or_create(user=user)
-
-            data = {
-                'token': token.key,
-                'fullname': user.userprofile.fullname,  # type:ignore
-                'email': user.email,  # type:ignore
-                'user_id': user.id,  # type:ignore
-            }
-
-            return Response(data, status=status.HTTP_201_CREATED)
-
-        return Response(
-            serializer.errors,
-            status=status.HTTP_400_BAD_REQUEST,
+        user = User.objects.create_user(
+            username=email,
+            email=email,
+            password=password,
         )
+
+        profile = UserProfile.objects.create(
+            user=user,
+            fullname=fullname,
+        )
+
+        token, _ = Token.objects.get_or_create(user=user)
+
+        serializer.instance = profile
+        serializer.context['token'] = token.key
 
 
 class LoginView(ObtainAuthToken):

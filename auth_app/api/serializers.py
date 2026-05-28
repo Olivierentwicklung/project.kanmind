@@ -1,6 +1,5 @@
 from django.contrib.auth import authenticate
 from django.contrib.auth.models import User
-from django.db import transaction
 from rest_framework import serializers
 
 from auth_app.models import UserProfile
@@ -8,19 +7,18 @@ from auth_app.models import UserProfile
 
 class RegistrationSerializer(serializers.ModelSerializer):
     """
-    Serializer for user registration.
-
-    Creates both:
-    - Django User
-    - UserProfile
+    Serializer used for registering a new user.
     """
 
     email = serializers.EmailField(write_only=True)
     password = serializers.CharField(write_only=True)
     repeated_password = serializers.CharField(write_only=True)
 
+    token = serializers.SerializerMethodField()
+    user_id = serializers.IntegerField(source='user.id', read_only=True)
+
     class Meta:
-        """Configuration for the serializer fields and model."""
+        """Configuration class for the serializer."""
 
         model = UserProfile
         fields = [
@@ -28,52 +26,41 @@ class RegistrationSerializer(serializers.ModelSerializer):
             'email',
             'password',
             'repeated_password',
+            'token',
+            'user_id',
         ]
 
     def validate_email(self, value):
-        """
-        Ensure the email address is unique.
-        """
+        """Validate the email field."""
+
         if User.objects.filter(email=value).exists():
             raise serializers.ValidationError('Email already exists.')
         return value
 
     def validate(self, attrs):
         """
-        Validate that both passwords match.
+        We compare:
+           - password
+           - repeated_password
         """
+
         if attrs['password'] != attrs['repeated_password']:
             raise serializers.ValidationError(
                 {'repeated_password': 'Passwords do not match.'}
             )
-
         return attrs
 
-    def create(self, validated_data):
-        """
-        Create User and UserProfile inside a database transaction.
-        """
-        fullname = validated_data.pop('fullname')
-        email = validated_data.pop('email')
-        password = validated_data.pop('password')
+    def get_token(self, obj):
+        """Return the authentication token for the response."""
 
-        # Remove repeated_password because it is not needed anymore
-        validated_data.pop('repeated_password')
+        return self.context.get('token')
 
-        # Ensure both objects are created successfully or rollback everything
-        with transaction.atomic():
-            user = User.objects.create_user(
-                username=email,
-                email=email,
-                password=password,
-            )
+    def to_representation(self, instance):
+        """Customize the final API response."""
 
-            UserProfile.objects.create(
-                user=user,
-                fullname=fullname,
-            )
-
-        return user
+        data = super().to_representation(instance)
+        data['email'] = instance.user.email
+        return data
 
 
 class LoginSerializer(serializers.Serializer):
