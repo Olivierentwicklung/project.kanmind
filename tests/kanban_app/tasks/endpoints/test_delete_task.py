@@ -1,4 +1,5 @@
 import pytest
+from rest_framework import status
 
 from kanban_app.boards.models import Board
 from kanban_app.tasks.models import Comment, Task
@@ -27,7 +28,7 @@ def test_delete_task_success_as_task_creator(
         f'{TASKS_URL}{task.id}/',  # type:ignore
     )
 
-    assert response.status_code == 204
+    assert response.status_code == status.HTTP_204_NO_CONTENT
     assert response.data is None
     assert not Task.objects.filter(id=task.id).exists()  # type:ignore
 
@@ -54,7 +55,7 @@ def test_delete_task_success_as_board_owner(
         f'{TASKS_URL}{task.id}/',  # type:ignore
     )
 
-    assert response.status_code == 204
+    assert response.status_code == status.HTTP_204_NO_CONTENT
     assert response.data is None
     assert not Task.objects.filter(id=task.id).exists()  # type:ignore
 
@@ -86,7 +87,7 @@ def test_delete_task_deletes_related_comments(
         f'{TASKS_URL}{task.id}/',  # type:ignore
     )
 
-    assert response.status_code == 204
+    assert response.status_code == status.HTTP_204_NO_CONTENT
     assert not Task.objects.filter(id=task.id).exists()  # type:ignore
     assert not Comment.objects.filter(id=comment.id).exists()  # type:ignore
 
@@ -111,7 +112,7 @@ def test_delete_task_fails_when_not_authenticated(
         f'{TASKS_URL}{task.id}/',  # type:ignore
     )
 
-    assert response.status_code == 401
+    assert response.status_code == status.HTTP_401_UNAUTHORIZED
     assert Task.objects.filter(id=task.id).exists()  # type:ignore
 
 
@@ -138,7 +139,7 @@ def test_delete_task_returns_403_when_user_is_only_board_member(
         f'{TASKS_URL}{task.id}/',  # type:ignore
     )
 
-    assert response.status_code == 403
+    assert response.status_code == status.HTTP_403_FORBIDDEN
     assert Task.objects.filter(id=task.id).exists()  # type:ignore
 
 
@@ -148,7 +149,7 @@ def test_delete_task_returns_404_when_task_does_not_exist(
 ):
     response = auth_user_client.delete('{TASKS_URL}999999/')
 
-    assert response.status_code == 404
+    assert response.status_code == status.HTTP_404_NOT_FOUND
 
 
 @pytest.mark.django_db
@@ -172,4 +173,4 @@ def test_delete_task_returns_500_when_unexpected_error_happens(
             f'{TASKS_URL}{task.id}/',  # type:ignore
         )
 
-    assert response.status_code == 500
+    assert response.status_code == status.HTTP_500_INTERNAL_SERVER_ERROR

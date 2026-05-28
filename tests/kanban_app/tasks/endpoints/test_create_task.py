@@ -1,4 +1,5 @@
 import pytest
+from rest_framework import status
 
 from kanban_app.boards.models import Board
 from kanban_app.tasks.models import Task
@@ -34,7 +35,7 @@ def test_create_task_success(
         format='json',
     )
 
-    assert response.status_code == 201
+    assert response.status_code == status.HTTP_201_CREATED
 
     task = Task.objects.get(id=response.data['id'])
 
@@ -88,7 +89,7 @@ def test_create_task_success_without_assignee_and_reviewer(
         format='json',
     )
 
-    assert response.status_code == 201
+    assert response.status_code == status.HTTP_201_CREATED
 
     task = Task.objects.get(id=response.data['id'])
 
@@ -115,7 +116,7 @@ def test_create_task_fails_when_not_authenticated(client, user_profile):
 
     response = client.post(TASKS_URL, payload, format='json')
 
-    assert response.status_code == 401
+    assert response.status_code == status.HTTP_401_UNAUTHORIZED
     assert Task.objects.count() == 0
 
 
@@ -145,7 +146,7 @@ def test_create_task_returns_403_when_user_is_not_board_member(
         format='json',
     )
 
-    assert response.status_code == 403
+    assert response.status_code == status.HTTP_403_FORBIDDEN
     assert Task.objects.count() == 0
 
 
@@ -167,7 +168,7 @@ def test_create_task_returns_404_when_board_does_not_exist(
         format='json',
     )
 
-    assert response.status_code == 404
+    assert response.status_code == status.HTTP_404_NOT_FOUND
     assert Task.objects.count() == 0
 
 
@@ -206,7 +207,7 @@ def test_create_task_fails_when_required_field_is_missing(
         format='json',
     )
 
-    assert response.status_code == 400
+    assert response.status_code == status.HTTP_400_BAD_REQUEST
     assert missing_field in response.data
     assert Task.objects.count() == 0
 
@@ -236,7 +237,7 @@ def test_create_task_fails_when_title_is_empty(
         format='json',
     )
 
-    assert response.status_code == 400
+    assert response.status_code == status.HTTP_400_BAD_REQUEST
     assert 'title' in response.data
     assert Task.objects.count() == 0
 
@@ -279,7 +280,7 @@ def test_create_task_fails_with_invalid_field_values(
         format='json',
     )
 
-    assert response.status_code == 400
+    assert response.status_code == status.HTTP_400_BAD_REQUEST
     assert field in response.data
     assert Task.objects.count() == 0
 
@@ -312,7 +313,7 @@ def test_create_task_fails_when_assignee_is_not_board_member(
         format='json',
     )
 
-    assert response.status_code == 400
+    assert response.status_code == status.HTTP_400_BAD_REQUEST
     assert 'assignee_id' in response.data
     assert Task.objects.count() == 0
 
@@ -344,7 +345,7 @@ def test_create_task_fails_when_reviewer_is_not_board_member(
         format='json',
     )
 
-    assert response.status_code == 400
+    assert response.status_code == status.HTTP_400_BAD_REQUEST
     assert 'reviewer_id' in response.data
     assert Task.objects.count() == 0
 
@@ -374,4 +375,4 @@ def test_create_task_returns_500_when_unexpected_error_happens(
             format='json',
         )
 
-    assert response.status_code == 500
+    assert response.status_code == status.HTTP_500_INTERNAL_SERVER_ERROR
