@@ -4,8 +4,9 @@ import pytest
 
 from kanban_app.boards.models import Board
 from kanban_app.tasks.models import Comment, Task
+from tests.conftest import TASKS_URL
 
-ASSIGNED_TASKS_URL = '/api/tasks/assigned-to-me/'
+ASSIGNED_TASKS_URL = TASKS_URL + 'assigned-to-me/'
 
 
 @pytest.mark.django_db

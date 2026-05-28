@@ -14,6 +14,7 @@ EMAIL_CHECK_URL = reverse('email-check')
 LOGIN_URL = reverse('login')
 REGISTRATION_URL = reverse('registration')
 BOARDS_URL = reverse('board-list')
+TASKS_URL = '/api/tasks/'
 
 
 """ Fake Data """

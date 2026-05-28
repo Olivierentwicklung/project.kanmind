@@ -4,8 +4,9 @@ import pytest
 
 from kanban_app.boards.models import Board
 from kanban_app.tasks.models import Comment, Task
+from tests.conftest import TASKS_URL
 
-REVIEW_TASKS_URL = '/api/tasks/reviewing/'
+REVIEW_TASKS_URL = TASKS_URL + 'reviewing/'
 
 
 @pytest.mark.django_db

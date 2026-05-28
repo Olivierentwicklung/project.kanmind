@@ -2,8 +2,7 @@ import pytest
 
 from kanban_app.boards.models import Board
 from kanban_app.tasks.models import Comment, Task
-
-TASKS_URL = '/api/tasks/'
+from tests.conftest import TASKS_URL
 
 
 @pytest.mark.django_db
