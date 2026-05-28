@@ -1,9 +1,9 @@
 import pytest
+from rest_framework import status
 
 from kanban_app.boards.models import Board
 from kanban_app.tasks.models import Comment, Task
-
-TASKS_URL = '/api/tasks/'
+from tests.conftest import TASKS_URL
 
 
 @pytest.mark.django_db
@@ -32,7 +32,7 @@ def test_create_task_comment_success(
         format='json',
     )
 
-    assert response.status_code == 201
+    assert response.status_code == status.HTTP_201_CREATED
 
     comment = Comment.objects.get(id=response.data['id'])
 
@@ -67,7 +67,7 @@ def test_create_task_comment_fails_when_content_is_missing(
         format='json',
     )
 
-    assert response.status_code == 400
+    assert response.status_code == status.HTTP_400_BAD_REQUEST
     assert 'content' in response.data
     assert Comment.objects.count() == 0
 
@@ -98,7 +98,7 @@ def test_create_task_comment_fails_when_content_is_empty(
         format='json',
     )
 
-    assert response.status_code == 400
+    assert response.status_code == status.HTTP_400_BAD_REQUEST
     assert 'content' in response.data
     assert Comment.objects.count() == 0
 
@@ -128,7 +128,7 @@ def test_create_task_comment_fails_when_not_authenticated(
         format='json',
     )
 
-    assert response.status_code == 401
+    assert response.status_code == status.HTTP_401_UNAUTHORIZED
     assert Comment.objects.count() == 0
 
 
@@ -158,7 +158,7 @@ def test_create_task_comment_returns_403_when_user_is_not_board_member(
         format='json',
     )
 
-    assert response.status_code == 403
+    assert response.status_code == status.HTTP_403_FORBIDDEN
     assert Comment.objects.count() == 0
 
 
@@ -176,7 +176,7 @@ def test_create_task_comment_returns_404_when_task_does_not_exist(
         format='json',
     )
 
-    assert response.status_code == 404
+    assert response.status_code == status.HTTP_404_NOT_FOUND
     assert Comment.objects.count() == 0
 
 
@@ -206,4 +206,4 @@ def test_create_task_comment_returns_500_when_unexpected_error_happens(
             format='json',
         )
 
-    assert response.status_code == 500
+    assert response.status_code == status.HTTP_500_INTERNAL_SERVER_ERROR

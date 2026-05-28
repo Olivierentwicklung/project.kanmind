@@ -1,9 +1,9 @@
 import pytest
+from rest_framework import status
 
 from kanban_app.boards.models import Board
 from kanban_app.tasks.models import Comment, Task
-
-TASKS_URL = '/api/tasks/'
+from tests.conftest import TASKS_URL
 
 
 @pytest.mark.django_db
@@ -32,7 +32,7 @@ def test_delete_task_comment_success_as_author(
         f'{TASKS_URL}{task.id}/comments/{comment.id}/',  # type:ignore
     )
 
-    assert response.status_code == 204
+    assert response.status_code == status.HTTP_204_NO_CONTENT
     assert response.data is None
     assert not Comment.objects.filter(id=comment.id).exists()  # type:ignore
 
@@ -62,7 +62,7 @@ def test_delete_task_comment_fails_when_not_authenticated(
         f'{TASKS_URL}{task.id}/comments/{comment.id}/',  # type:ignore
     )
 
-    assert response.status_code == 401
+    assert response.status_code == status.HTTP_401_UNAUTHORIZED
     assert Comment.objects.filter(id=comment.id).exists()  # type:ignore
 
 
@@ -93,7 +93,7 @@ def test_delete_task_comment_returns_403_when_user_is_not_author(
         f'{TASKS_URL}{task.id}/comments/{comment.id}/',  # type:ignore
     )
 
-    assert response.status_code == 403
+    assert response.status_code == status.HTTP_403_FORBIDDEN
     assert Comment.objects.filter(id=comment.id).exists()  # type:ignore
 
 
@@ -123,7 +123,7 @@ def test_delete_task_comment_returns_404_when_task_does_not_exist(
         f'{TASKS_URL}999999/comments/{comment.id}/',  # type:ignore
     )
 
-    assert response.status_code == 404
+    assert response.status_code == status.HTTP_404_NOT_FOUND
     assert Comment.objects.filter(id=comment.id).exists()  # type:ignore
 
 
@@ -147,7 +147,7 @@ def test_delete_task_comment_returns_404_when_comment_does_not_exist(
         f'{TASKS_URL}{task.id}/comments/999999/',  # type:ignore
     )
 
-    assert response.status_code == 404
+    assert response.status_code == status.HTTP_404_NOT_FOUND
 
 
 @pytest.mark.django_db
@@ -181,7 +181,7 @@ def test_delete_task_comment_returns_404_when_comment_does_not_belong_to_task(
         f'{TASKS_URL}{task_1.id}/comments/{comment.id}/',  # type:ignore
     )
 
-    assert response.status_code == 404
+    assert response.status_code == status.HTTP_404_NOT_FOUND
     assert Comment.objects.filter(id=comment.id).exists()  # type:ignore
 
 
@@ -211,4 +211,4 @@ def test_delete_task_comment_returns_500_when_unexpected_error_happens(
             f'{TASKS_URL}{task.id}/comments/{comment.id}/',  # type:ignore
         )
 
-    assert response.status_code == 500
+    assert response.status_code == status.HTTP_500_INTERNAL_SERVER_ERROR

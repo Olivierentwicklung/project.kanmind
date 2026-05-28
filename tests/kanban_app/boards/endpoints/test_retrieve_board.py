@@ -1,8 +1,8 @@
 import pytest
+from rest_framework import status
 
 from kanban_app.tasks.models import Task
-
-BOARDS_URL = '/api/boards/'
+from tests.conftest import BOARDS_URL
 
 
 @pytest.mark.django_db
@@ -14,7 +14,7 @@ def test_retrieve_board_success_as_owner(
 ):
     response = auth_user_client.get(f'{BOARDS_URL}{board_with_detailed_tasks.id}/')
 
-    assert response.status_code == 200
+    assert response.status_code == status.HTTP_200_OK
 
     data = response.data
 
@@ -49,7 +49,7 @@ def test_retrieve_board_success_as_member(
 ):
     response = auth_user_client.get(f'{BOARDS_URL}{member_board.id}/')
 
-    assert response.status_code == 200
+    assert response.status_code == status.HTTP_200_OK
     assert response.data['id'] == member_board.id
     assert response.data['owner_id'] == second_user_profile.id
 
@@ -60,7 +60,7 @@ def test_retrieve_board_includes_comments_count(
 ):
     response = auth_user_client.get(f'{BOARDS_URL}{board_with_commented_task.id}/')
 
-    assert response.status_code == 200
+    assert response.status_code == status.HTTP_200_OK
 
     task_data = response.data['tasks'][0]
 
@@ -72,7 +72,7 @@ def test_retrieve_board_includes_comments_count(
 def test_retrieve_board_fails_when_not_authenticated(client, owned_board):
     response = client.get(f'{BOARDS_URL}{owned_board.id}/')
 
-    assert response.status_code == 401
+    assert response.status_code == status.HTTP_401_UNAUTHORIZED
 
 
 @pytest.mark.django_db
@@ -81,14 +81,14 @@ def test_retrieve_board_returns_403_when_user_has_no_access(
 ):
     response = auth_user_client.get(f'{BOARDS_URL}{private_board.id}/')
 
-    assert response.status_code == 403
+    assert response.status_code == status.HTTP_403_FORBIDDEN
 
 
 @pytest.mark.django_db
 def test_retrieve_board_returns_404_when_board_does_not_exist(auth_user_client):
     response = auth_user_client.get('{BOARDS_URL}999999/')
 
-    assert response.status_code == 404
+    assert response.status_code == status.HTTP_404_NOT_FOUND
 
 
 @pytest.mark.django_db
@@ -98,4 +98,4 @@ def test_retrieve_board_returns_500_when_unexpected_error_happens(
     with force_db_crash:
         response = auth_user_client.get(f'{BOARDS_URL}{owned_board.id}/')
 
-    assert response.status_code == 500
+    assert response.status_code == status.HTTP_500_INTERNAL_SERVER_ERROR

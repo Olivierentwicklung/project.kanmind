@@ -1,9 +1,9 @@
 import pytest
+from rest_framework import status
 
 from kanban_app.boards.models import Board
 from kanban_app.tasks.models import Comment, Task
-
-BOARDS_URL = '/api/boards/'
+from tests.conftest import BOARDS_URL
 
 
 @pytest.mark.django_db
@@ -27,7 +27,7 @@ def test_delete_board_success_as_owner(
         f'{BOARDS_URL}{owned_board.id}/',
     )
 
-    assert response.status_code == 204
+    assert response.status_code == status.HTTP_204_NO_CONTENT
     assert response.data is None
 
     assert not Board.objects.filter(id=owned_board.id).exists()
@@ -41,7 +41,7 @@ def test_delete_board_fails_when_not_authenticated(client, owned_board):
         f'{BOARDS_URL}{owned_board.id}/',
     )
 
-    assert response.status_code == 401
+    assert response.status_code == status.HTTP_401_UNAUTHORIZED
     assert Board.objects.filter(id=owned_board.id).exists()
 
 
@@ -54,7 +54,7 @@ def test_delete_board_returns_403_when_user_is_member_but_not_owner(
         f'{BOARDS_URL}{member_board.id}/',
     )
 
-    assert response.status_code == 403
+    assert response.status_code == status.HTTP_403_FORBIDDEN
     assert Board.objects.filter(id=member_board.id).exists()
 
 
@@ -68,7 +68,7 @@ def test_delete_board_returns_403_when_user_has_no_access(
         f'{BOARDS_URL}{private_board.id}/',
     )
 
-    assert response.status_code == 403
+    assert response.status_code == status.HTTP_403_FORBIDDEN
     assert Board.objects.filter(id=private_board.id).exists()
 
 
@@ -76,7 +76,7 @@ def test_delete_board_returns_403_when_user_has_no_access(
 def test_delete_board_returns_404_when_board_does_not_exist(auth_user_client):
     response = auth_user_client.delete('{BOARDS_URL}999999/')
 
-    assert response.status_code == 404
+    assert response.status_code == status.HTTP_404_NOT_FOUND
 
 
 @pytest.mark.django_db
@@ -88,4 +88,4 @@ def test_delete_board_returns_500_when_unexpected_error_happens(
             f'{BOARDS_URL}{owned_board.id}/',
         )
 
-    assert response.status_code == 500
+    assert response.status_code == status.HTTP_500_INTERNAL_SERVER_ERROR
