@@ -1,4 +1,5 @@
 import pytest
+from rest_framework import status
 
 from tests.conftest import BOARDS_URL
 
@@ -11,7 +12,7 @@ def test_list_boards_success_as_owner(
 ):
     response = auth_user_client.get(BOARDS_URL)
 
-    assert response.status_code == 200
+    assert response.status_code == status.HTTP_200_OK
     assert len(response.data) == 1
 
     board_data = response.data[0]
@@ -33,7 +34,7 @@ def test_list_boards_success_as_member(
 ):
     response = auth_user_client.get(BOARDS_URL)
 
-    assert response.status_code == 200
+    assert response.status_code == status.HTTP_200_OK
 
     board_data = response.data[0]
 
@@ -51,7 +52,7 @@ def test_list_boards_returns_only_accessible_boards(
 ):
     response = auth_user_client.get(BOARDS_URL)
 
-    assert response.status_code == 200
+    assert response.status_code == status.HTTP_200_OK
 
     board_ids = [board['id'] for board in response.data]
 
@@ -68,7 +69,7 @@ def test_list_boards_returns_empty_list_when_user_has_no_boards(
 ):
     response = auth_user_client.get(BOARDS_URL)
 
-    assert response.status_code == 200
+    assert response.status_code == status.HTTP_200_OK
     assert response.data == []
 
 
@@ -76,7 +77,7 @@ def test_list_boards_returns_empty_list_when_user_has_no_boards(
 def test_list_boards_fails_when_not_authenticated(client):
     response = client.get(BOARDS_URL)
 
-    assert response.status_code == 401
+    assert response.status_code == status.HTTP_401_UNAUTHORIZED
 
 
 @pytest.mark.django_db
@@ -87,4 +88,4 @@ def test_list_boards_returns_500_when_unexpected_error_happens(
     with force_db_crash:
         response = auth_user_client.get(BOARDS_URL)
 
-    assert response.status_code == 500
+    assert response.status_code == status.HTTP_500_INTERNAL_SERVER_ERROR

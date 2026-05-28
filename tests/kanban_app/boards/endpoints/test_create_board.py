@@ -1,4 +1,5 @@
 import pytest
+from rest_framework import status
 
 from kanban_app.boards.models import Board
 from tests.conftest import BOARDS_URL
@@ -20,7 +21,7 @@ def test_create_board_success(auth_user_client, user_profile, second_user_profil
         format='json',
     )
 
-    assert response.status_code == 201
+    assert response.status_code == status.HTTP_201_CREATED
 
     board = Board.objects.get(id=response.data['id'])
 
@@ -51,7 +52,7 @@ def test_create_board_fails_when_not_authenticated(client, user_profile):
         format='json',
     )
 
-    assert response.status_code == 401
+    assert response.status_code == status.HTTP_401_UNAUTHORIZED
     assert Board.objects.count() == 0
 
 
@@ -67,7 +68,7 @@ def test_create_board_fails_when_title_is_missing(auth_user_client, user_profile
         format='json',
     )
 
-    assert response.status_code == 400
+    assert response.status_code == status.HTTP_400_BAD_REQUEST
     assert 'title' in response.data
     assert Board.objects.count() == 0
 
@@ -85,7 +86,7 @@ def test_create_board_fails_when_title_is_empty(auth_user_client, user_profile):
         format='json',
     )
 
-    assert response.status_code == 400
+    assert response.status_code == status.HTTP_400_BAD_REQUEST
     assert 'title' in response.data
     assert Board.objects.count() == 0
 
@@ -102,7 +103,7 @@ def test_create_board_fails_when_members_are_missing(auth_user_client):
         format='json',
     )
 
-    assert response.status_code == 400
+    assert response.status_code == status.HTTP_400_BAD_REQUEST
     assert 'members' in response.data
     assert Board.objects.count() == 0
 
@@ -120,7 +121,7 @@ def test_create_board_fails_when_members_are_empty(auth_user_client):
         format='json',
     )
 
-    assert response.status_code == 400
+    assert response.status_code == status.HTTP_400_BAD_REQUEST
     assert 'members' in response.data
     assert Board.objects.count() == 0
 
@@ -138,7 +139,7 @@ def test_create_board_fails_when_member_does_not_exist(auth_user_client):
         format='json',
     )
 
-    assert response.status_code == 400
+    assert response.status_code == status.HTTP_400_BAD_REQUEST
     assert 'members' in response.data
     assert Board.objects.count() == 0
 
@@ -159,4 +160,4 @@ def test_create_board_returns_500_when_unexpected_error_happens(
             format='json',
         )
 
-    assert response.status_code == 500
+    assert response.status_code == status.HTTP_500_INTERNAL_SERVER_ERROR

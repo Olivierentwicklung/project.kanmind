@@ -1,4 +1,5 @@
 import pytest
+from rest_framework import status
 
 from tests.conftest import BOARDS_URL
 
@@ -24,7 +25,7 @@ def test_update_board_success_as_owner(
         format='json',
     )
 
-    assert response.status_code == 200
+    assert response.status_code == status.HTTP_200_OK
 
     owned_board.refresh_from_db()
 
@@ -67,7 +68,7 @@ def test_update_board_success_as_member(
         format='json',
     )
 
-    assert response.status_code == 200
+    assert response.status_code == status.HTTP_200_OK
 
     member_board.refresh_from_db()
 
@@ -93,7 +94,7 @@ def test_update_board_can_remove_members(
         format='json',
     )
 
-    assert response.status_code == 200
+    assert response.status_code == status.HTTP_200_OK
 
     board_with_members.refresh_from_db()
 
@@ -113,7 +114,7 @@ def test_update_board_fails_when_not_authenticated(client, owned_board):
         format='json',
     )
 
-    assert response.status_code == 401
+    assert response.status_code == status.HTTP_401_UNAUTHORIZED
 
 
 @pytest.mark.django_db
@@ -135,7 +136,7 @@ def test_update_board_returns_403_when_user_has_no_access(
         format='json',
     )
 
-    assert response.status_code == 403
+    assert response.status_code == status.HTTP_403_FORBIDDEN
 
 
 @pytest.mark.django_db
@@ -156,7 +157,7 @@ def test_update_board_returns_404_when_board_does_not_exist(
         format='json',
     )
 
-    assert response.status_code == 404
+    assert response.status_code == status.HTTP_404_NOT_FOUND
 
 
 @pytest.mark.django_db
@@ -178,7 +179,7 @@ def test_update_board_fails_when_title_is_empty(
         format='json',
     )
 
-    assert response.status_code == 400
+    assert response.status_code == status.HTTP_400_BAD_REQUEST
     assert 'title' in response.data
 
 
@@ -199,7 +200,7 @@ def test_update_board_fails_when_member_does_not_exist(
         format='json',
     )
 
-    assert response.status_code == 400
+    assert response.status_code == status.HTTP_400_BAD_REQUEST
     assert 'members' in response.data
 
 
@@ -221,4 +222,4 @@ def test_update_board_returns_500_when_unexpected_error_happens(
             format='json',
         )
 
-    assert response.status_code == 500
+    assert response.status_code == status.HTTP_500_INTERNAL_SERVER_ERROR
