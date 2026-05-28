@@ -1,6 +1,7 @@
 from unittest.mock import patch
 
 import pytest
+from rest_framework import status
 from rest_framework.authtoken.models import Token
 
 from tests.conftest import LOGIN_URL
@@ -11,7 +12,7 @@ def test_login_success(client, user_profile, user_login_payload):
 
     response = client.post(LOGIN_URL, user_login_payload, format='json')
 
-    assert response.status_code == 200
+    assert response.status_code == status.HTTP_200_OK
 
     data = response.data
 
@@ -30,7 +31,7 @@ def test_login_fails_with_wrong_password(client, user_profile, user_login_payloa
 
     response = client.post(LOGIN_URL, user_login_payload, format='json')
 
-    assert response.status_code == 400
+    assert response.status_code == status.HTTP_400_BAD_REQUEST
 
 
 @pytest.mark.django_db
@@ -39,7 +40,7 @@ def test_login_fails_with_unknown_email(client, user_login_payload):
 
     response = client.post(LOGIN_URL, user_login_payload, format='json')
 
-    assert response.status_code == 400
+    assert response.status_code == status.HTTP_400_BAD_REQUEST
 
 
 @pytest.mark.django_db
@@ -58,7 +59,7 @@ def test_login_fails_when_required_field_is_missing(
 
     response = client.post(LOGIN_URL, user_login_payload, format='json')
 
-    assert response.status_code == 400
+    assert response.status_code == status.HTTP_400_BAD_REQUEST
     assert missing_field in response.data
 
 
@@ -68,7 +69,7 @@ def test_login_fails_with_invalid_email_format(client, user_login_payload):
 
     response = client.post(LOGIN_URL, user_login_payload, format='json')
 
-    assert response.status_code == 400
+    assert response.status_code == status.HTTP_400_BAD_REQUEST
     assert 'email' in response.data
 
 
@@ -81,7 +82,7 @@ def test_login_returns_same_token_if_token_already_exists(
 
     response = client.post(LOGIN_URL, user_login_payload, format='json')
 
-    assert response.status_code == 200
+    assert response.status_code == status.HTTP_200_OK
     assert response.data['token'] == existing_token.key
     assert Token.objects.filter(user=user_profile.user).count() == 1
 
@@ -101,4 +102,4 @@ def test_login_returns_500_when_unexpected_error_happens(
             format='json',
         )
 
-    assert response.status_code == 500
+    assert response.status_code == status.HTTP_500_INTERNAL_SERVER_ERROR
