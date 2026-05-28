@@ -65,31 +65,53 @@ class RegistrationSerializer(serializers.ModelSerializer):
 
 class LoginSerializer(serializers.Serializer):
     """
-    Serializer for user authentication.
+    Serializer for user login.
     """
 
-    email = serializers.EmailField()
-    password = serializers.CharField(
-        write_only=True,
-    )
+    email = serializers.EmailField(write_only=True)
+    password = serializers.CharField(write_only=True)
+
+    token = serializers.SerializerMethodField()
 
     def validate(self, attrs):
         """
-        Authenticate user credentials.
+        Check if email and password are correct.
         """
-        email = attrs.get('email')
-        password = attrs.get('password')
+
+        email = attrs['email']
+        password = attrs['password']
 
         user = authenticate(
             username=email,
             password=password,
         )
 
-        if not user:
-            raise serializers.ValidationError('Invalid email or password.')
+        if user is None:
+            raise serializers.ValidationError({'detail': 'Invalid email or password.'})
 
         attrs['user'] = user
         return attrs
+
+    def get_token(self, obj):
+        """
+        Return token from serializer context.
+        """
+
+        return self.context.get('token')
+
+    def to_representation(self, instance):
+        """
+        Convert the logged-in User instance into response JSON.
+        """
+
+        data = {
+            'token': self.get_token(instance),
+            'fullname': instance.userprofile.fullname,
+            'email': instance.email,
+            'user_id': instance.id,
+        }
+
+        return data
 
 
 class EmailCheckSerializer(serializers.Serializer):

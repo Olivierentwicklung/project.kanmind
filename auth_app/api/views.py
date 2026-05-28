@@ -2,7 +2,6 @@ from django.contrib.auth.models import User
 from django.db import transaction
 from rest_framework import generics, status
 from rest_framework.authtoken.models import Token
-from rest_framework.authtoken.views import ObtainAuthToken
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
@@ -47,41 +46,32 @@ class RegistrationView(generics.CreateAPIView):
         serializer.context['token'] = token.key
 
 
-class LoginView(ObtainAuthToken):
+class LoginView(generics.GenericAPIView):
     """
-    Authenticate user credentials and return an auth token.
+    API view for user login.
     """
 
-    permission_classes = [AllowAny]
     serializer_class = LoginSerializer
+    permission_classes = [AllowAny]
 
-    def post(self, request):
+    def post(self, request, *args, **kwargs):
         """
-        Authenticate user credentials and return an auth token.
+        Validate login data and return token response.
         """
-        serializer = self.serializer_class(
-            data=request.data,
-            context={'request': request},
-        )
 
-        if serializer.is_valid():
-            user = serializer.validated_data['user']  # type:ignore
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
 
-            # Reuse existing token or create a new one
-            token, _ = Token.objects.get_or_create(user=user)
+        user = serializer.validated_data['user']
 
-            data = {
-                'token': token.key,
-                'fullname': user.userprofile.fullname,
-                'email': user.email,
-                'user_id': user.id,
-            }
+        token, _ = Token.objects.get_or_create(user=user)
 
-            return Response(data, status=status.HTTP_200_OK)
+        serializer.instance = user
+        serializer.context['token'] = token.key
 
         return Response(
-            serializer.errors,
-            status=status.HTTP_400_BAD_REQUEST,
+            serializer.data,
+            status=status.HTTP_200_OK,
         )
 
 
