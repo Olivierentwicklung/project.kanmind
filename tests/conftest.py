@@ -2,10 +2,20 @@ import pytest
 from django.contrib.auth.models import User
 from django.db import connection
 from django.db.utils import OperationalError
+from django.urls import reverse
 from rest_framework.authtoken.models import Token
 from rest_framework.test import APIClient
 
 from auth_app.models import UserProfile
+
+""" Endpoints"""
+
+EMAIL_CHECK_URL = reverse('email-check')
+LOGIN_URL = reverse('login')
+REGISTRATION_URL = reverse('registration')
+
+
+""" Fake Data """
 
 FAKE_USER_PROFILE_DATA = dict(
     fullname='Example User', email='example@mail.com', password='examplePassword123'

@@ -2,7 +2,7 @@ from unittest.mock import patch
 
 import pytest
 
-EMAIL_CHECK_URL = '/api/email-check/'
+from tests.conftest import EMAIL_CHECK_URL
 
 
 @pytest.mark.django_db

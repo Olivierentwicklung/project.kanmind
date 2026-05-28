@@ -3,11 +3,13 @@ from unittest.mock import patch
 import pytest
 from rest_framework.authtoken.models import Token
 
+from tests.conftest import LOGIN_URL
+
 
 @pytest.mark.django_db
 def test_login_success(client, user_profile, user_login_payload):
 
-    response = client.post('/api/login/', user_login_payload, format='json')
+    response = client.post(LOGIN_URL, user_login_payload, format='json')
 
     assert response.status_code == 200
 
@@ -26,7 +28,7 @@ def test_login_fails_with_wrong_password(client, user_profile, user_login_payloa
 
     user_login_payload.update(dict(password='wrongPassword123'))
 
-    response = client.post('/api/login/', user_login_payload, format='json')
+    response = client.post(LOGIN_URL, user_login_payload, format='json')
 
     assert response.status_code == 400
 
@@ -35,7 +37,7 @@ def test_login_fails_with_wrong_password(client, user_profile, user_login_payloa
 def test_login_fails_with_unknown_email(client, user_login_payload):
     user_login_payload.update(dict(email='unknown@mail.com'))
 
-    response = client.post('/api/login/', user_login_payload, format='json')
+    response = client.post(LOGIN_URL, user_login_payload, format='json')
 
     assert response.status_code == 400
 
@@ -54,7 +56,7 @@ def test_login_fails_when_required_field_is_missing(
 
     user_login_payload.pop(missing_field)
 
-    response = client.post('/api/login/', user_login_payload, format='json')
+    response = client.post(LOGIN_URL, user_login_payload, format='json')
 
     assert response.status_code == 400
     assert missing_field in response.data
@@ -64,7 +66,7 @@ def test_login_fails_when_required_field_is_missing(
 def test_login_fails_with_invalid_email_format(client, user_login_payload):
     user_login_payload.update(dict(email='not-an-email'))
 
-    response = client.post('/api/login/', user_login_payload, format='json')
+    response = client.post(LOGIN_URL, user_login_payload, format='json')
 
     assert response.status_code == 400
     assert 'email' in response.data
@@ -77,7 +79,7 @@ def test_login_returns_same_token_if_token_already_exists(
 
     existing_token = Token.objects.create(user=user_profile.user)
 
-    response = client.post('/api/login/', user_login_payload, format='json')
+    response = client.post(LOGIN_URL, user_login_payload, format='json')
 
     assert response.status_code == 200
     assert response.data['token'] == existing_token.key
@@ -94,7 +96,7 @@ def test_login_returns_500_when_unexpected_error_happens(
         side_effect=Exception('Unexpected token error'),
     ):
         response = client.post(
-            '/api/login/',
+            LOGIN_URL,
             user_login_payload,
             format='json',
         )
