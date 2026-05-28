@@ -2,19 +2,19 @@ from unittest.mock import patch
 
 import pytest
 from django.contrib.auth.models import User
+from rest_framework import status
 from rest_framework.authtoken.models import Token
 
 from auth_app.models import UserProfile
+from tests.conftest import REGISTRATION_URL
 
 
 @pytest.mark.django_db
 def test_registration_sucess(client, user_registration_payload):
 
-    response = client.post(
-        '/api/registration/', user_registration_payload, format='json'
-    )
+    response = client.post(REGISTRATION_URL, user_registration_payload, format='json')
 
-    assert response.status_code == 201
+    assert response.status_code == status.HTTP_201_CREATED
 
     data = response.data
 
@@ -37,11 +37,9 @@ def test_registration_fails_when_email_already_exists(
     client, user, user_registration_payload
 ):
 
-    response = client.post(
-        '/api/registration/', user_registration_payload, format='json'
-    )
+    response = client.post(REGISTRATION_URL, user_registration_payload, format='json')
 
-    assert response.status_code == 400
+    assert response.status_code == status.HTTP_400_BAD_REQUEST
     assert 'email' in response.data
 
 
@@ -51,11 +49,9 @@ def test_registration_fails_when_passwords_do_not_match(
 ):
     user_registration_payload.update(dict(repeated_password='wrong password'))
 
-    response = client.post(
-        '/api/registration/', user_registration_payload, format='json'
-    )
+    response = client.post(REGISTRATION_URL, user_registration_payload, format='json')
 
-    assert response.status_code == 400
+    assert response.status_code == status.HTTP_400_BAD_REQUEST
     assert 'repeated_password' in response.data
 
 
@@ -75,11 +71,9 @@ def test_registration_fails_when_required_field_is_missing(
 
     user_registration_payload.pop(missing_field)
 
-    response = client.post(
-        '/api/registration/', user_registration_payload, format='json'
-    )
+    response = client.post(REGISTRATION_URL, user_registration_payload, format='json')
 
-    assert response.status_code == 400
+    assert response.status_code == status.HTTP_400_BAD_REQUEST
     assert missing_field in response.data
 
 
@@ -87,11 +81,9 @@ def test_registration_fails_when_required_field_is_missing(
 def test_registration_fails_with_invalid_email(client, user_registration_payload):
     user_registration_payload.update(dict(email='invalid-email'))
 
-    response = client.post(
-        '/api/registration/', user_registration_payload, format='json'
-    )
+    response = client.post(REGISTRATION_URL, user_registration_payload, format='json')
 
-    assert response.status_code == 400
+    assert response.status_code == status.HTTP_400_BAD_REQUEST
     assert 'email' in response.data
 
 
@@ -99,11 +91,9 @@ def test_registration_fails_with_invalid_email(client, user_registration_payload
 def test_registration_fails_with_empty_fullname(client, user_registration_payload):
     user_registration_payload.update(dict(fullname=''))
 
-    response = client.post(
-        '/api/registration/', user_registration_payload, format='json'
-    )
+    response = client.post(REGISTRATION_URL, user_registration_payload, format='json')
 
-    assert response.status_code == 400
+    assert response.status_code == status.HTTP_400_BAD_REQUEST
     assert 'fullname' in response.data
 
 
@@ -112,11 +102,9 @@ def test_registration_fails_with_too_long_fullname(client, user_registration_pay
 
     user_registration_payload.update(dict(fullname='a' * 256))
 
-    response = client.post(
-        '/api/registration/', user_registration_payload, format='json'
-    )
+    response = client.post(REGISTRATION_URL, user_registration_payload, format='json')
 
-    assert response.status_code == 400
+    assert response.status_code == status.HTTP_400_BAD_REQUEST
     assert 'fullname' in response.data
 
 
@@ -130,9 +118,9 @@ def test_registration_returns_500_when_unexpected_error_happens(
         side_effect=Exception('Unexpected database error'),
     ):
         response = client.post(
-            '/api/registration/',
+            REGISTRATION_URL,
             user_registration_payload,
             format='json',
         )
 
-    assert response.status_code == 500
+    assert response.status_code == status.HTTP_500_INTERNAL_SERVER_ERROR

@@ -1,9 +1,9 @@
 import pytest
+from rest_framework import status
 
 from kanban_app.boards.models import Board
 from kanban_app.tasks.models import Task
-
-TASKS_URL = '/api/tasks/'
+from tests.conftest import TASKS_URL
 
 
 @pytest.mark.django_db
@@ -45,7 +45,7 @@ def test_update_task_success(
         format='json',
     )
 
-    assert response.status_code == 200
+    assert response.status_code == status.HTTP_200_OK
 
     task.refresh_from_db()
 
@@ -96,7 +96,7 @@ def test_update_task_success_with_partial_payload(
         format='json',
     )
 
-    assert response.status_code == 200
+    assert response.status_code == status.HTTP_200_OK
 
     task.refresh_from_db()
 
@@ -138,7 +138,7 @@ def test_update_task_fails_when_board_change_is_sent(
         format='json',
     )
 
-    assert response.status_code == 400
+    assert response.status_code == status.HTTP_400_BAD_REQUEST
     assert 'board' in response.data
 
     task.refresh_from_db()
@@ -167,7 +167,7 @@ def test_update_task_fails_when_not_authenticated(client, user_profile):
         format='json',
     )
 
-    assert response.status_code == 401
+    assert response.status_code == status.HTTP_401_UNAUTHORIZED
 
 
 @pytest.mark.django_db
@@ -196,7 +196,7 @@ def test_update_task_returns_403_when_user_is_not_board_member(
         format='json',
     )
 
-    assert response.status_code == 403
+    assert response.status_code == status.HTTP_403_FORBIDDEN
 
 
 @pytest.mark.django_db
@@ -211,7 +211,7 @@ def test_update_task_returns_404_when_task_does_not_exist(auth_user_client):
         format='json',
     )
 
-    assert response.status_code == 404
+    assert response.status_code == status.HTTP_404_NOT_FOUND
 
 
 @pytest.mark.django_db
@@ -249,7 +249,7 @@ def test_update_task_fails_with_invalid_field_values(
         format='json',
     )
 
-    assert response.status_code == 400
+    assert response.status_code == status.HTTP_400_BAD_REQUEST
     assert field in response.data
 
 
@@ -278,7 +278,7 @@ def test_update_task_fails_when_assignee_is_not_board_member(
         format='json',
     )
 
-    assert response.status_code == 400
+    assert response.status_code == status.HTTP_400_BAD_REQUEST
     assert 'assignee_id' in response.data
 
 
@@ -307,7 +307,7 @@ def test_update_task_fails_when_reviewer_is_not_board_member(
         format='json',
     )
 
-    assert response.status_code == 400
+    assert response.status_code == status.HTTP_400_BAD_REQUEST
     assert 'reviewer_id' in response.data
 
 
@@ -335,4 +335,4 @@ def test_update_task_returns_500_when_unexpected_error_happens(
             format='json',
         )
 
-    assert response.status_code == 500
+    assert response.status_code == status.HTTP_500_INTERNAL_SERVER_ERROR

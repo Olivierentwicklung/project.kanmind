@@ -1,11 +1,13 @@
 from datetime import date
 
 import pytest
+from rest_framework import status
 
 from kanban_app.boards.models import Board
 from kanban_app.tasks.models import Comment, Task
+from tests.conftest import TASKS_URL
 
-ASSIGNED_TASKS_URL = '/api/tasks/assigned-to-me/'
+ASSIGNED_TASKS_URL = TASKS_URL + 'assigned-to-me/'
 
 
 @pytest.mark.django_db
@@ -57,7 +59,7 @@ def test_list_assigned_tasks_success(
 
     response = auth_user_client.get(ASSIGNED_TASKS_URL)
 
-    assert response.status_code == 200
+    assert response.status_code == status.HTTP_200_OK
     assert len(response.data) == 2
 
     task_ids = [task['id'] for task in response.data]
@@ -104,7 +106,7 @@ def test_list_assigned_tasks_returns_empty_list_when_no_tasks_assigned(
 
     response = auth_user_client.get(ASSIGNED_TASKS_URL)
 
-    assert response.status_code == 200
+    assert response.status_code == status.HTTP_200_OK
     assert response.data == []
 
 
@@ -112,7 +114,7 @@ def test_list_assigned_tasks_returns_empty_list_when_no_tasks_assigned(
 def test_list_assigned_tasks_fails_when_not_authenticated(client):
     response = client.get(ASSIGNED_TASKS_URL)
 
-    assert response.status_code == 401
+    assert response.status_code == status.HTTP_401_UNAUTHORIZED
 
 
 @pytest.mark.django_db
@@ -122,4 +124,4 @@ def test_list_assigned_tasks_returns_500_when_unexpected_error_happens(
     with force_db_crash:
         response = auth_user_client.get(ASSIGNED_TASKS_URL)
 
-    assert response.status_code == 500
+    assert response.status_code == status.HTTP_500_INTERNAL_SERVER_ERROR

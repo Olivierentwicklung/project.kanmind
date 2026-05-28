@@ -1,9 +1,9 @@
 import pytest
+from rest_framework import status
 
 from kanban_app.boards.models import Board
 from kanban_app.tasks.models import Comment, Task
-
-TASKS_URL = '/api/tasks/'
+from tests.conftest import TASKS_URL
 
 
 @pytest.mark.django_db
@@ -39,7 +39,7 @@ def test_list_task_comments_success(
         f'{TASKS_URL}{task.id}/comments/',  # type:ignore
     )
 
-    assert response.status_code == 200
+    assert response.status_code == status.HTTP_200_OK
     assert len(response.data) == 2
 
     assert response.data[0]['id'] == first_comment.id  # type:ignore
@@ -73,7 +73,7 @@ def test_list_task_comments_returns_empty_list_when_task_has_no_comments(
         f'{TASKS_URL}{task.id}/comments/',  # type:ignore
     )
 
-    assert response.status_code == 200
+    assert response.status_code == status.HTTP_200_OK
     assert response.data == []
 
 
@@ -96,7 +96,7 @@ def test_list_task_comments_fails_when_not_authenticated(
         f'{TASKS_URL}{task.id}/comments/',  # type:ignore
     )
 
-    assert response.status_code == 401
+    assert response.status_code == status.HTTP_401_UNAUTHORIZED
 
 
 @pytest.mark.django_db
@@ -119,7 +119,7 @@ def test_list_task_comments_returns_403_when_user_is_not_board_member(
         f'{TASKS_URL}{task.id}/comments/',  # type:ignore
     )
 
-    assert response.status_code == 403
+    assert response.status_code == status.HTTP_403_FORBIDDEN
 
 
 @pytest.mark.django_db
@@ -130,7 +130,7 @@ def test_list_task_comments_returns_404_when_task_does_not_exist(
         '{TASKS_URL}999999/comments/',
     )
 
-    assert response.status_code == 404
+    assert response.status_code == status.HTTP_404_NOT_FOUND
 
 
 @pytest.mark.django_db
@@ -165,7 +165,7 @@ def test_list_task_comments_are_sorted_chronologically(
         f'{TASKS_URL}{task.id}/comments/',  # type:ignore
     )
 
-    assert response.status_code == 200
+    assert response.status_code == status.HTTP_200_OK
     assert response.data[0]['id'] == first_comment.id  # type:ignore
     assert response.data[1]['id'] == second_comment.id  # type:ignore
 
@@ -190,4 +190,4 @@ def test_list_task_comments_returns_500_when_unexpected_error_happens(
             f'{TASKS_URL}{task.id}/comments/',  # type:ignore
         )
 
-    assert response.status_code == 500
+    assert response.status_code == status.HTTP_500_INTERNAL_SERVER_ERROR
