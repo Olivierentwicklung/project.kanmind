@@ -1,8 +1,7 @@
 import pytest
 
 from kanban_app.boards.models import Board
-
-BOARDS_URL = '/api/boards/'
+from tests.conftest import BOARDS_URL
 
 
 @pytest.mark.django_db

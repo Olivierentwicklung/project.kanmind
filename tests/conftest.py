@@ -13,6 +13,7 @@ from auth_app.models import UserProfile
 EMAIL_CHECK_URL = reverse('email-check')
 LOGIN_URL = reverse('login')
 REGISTRATION_URL = reverse('registration')
+BOARDS_URL = reverse('board-list')
 
 
 """ Fake Data """

@@ -1,6 +1,6 @@
 import pytest
 
-BOARDS_URL = '/api/boards/'
+from tests.conftest import BOARDS_URL
 
 
 @pytest.mark.django_db
