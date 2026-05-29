@@ -58,8 +58,13 @@ class RegistrationSerializer(serializers.ModelSerializer):
     def to_representation(self, instance):
         """Customize the final API response."""
 
-        data = super().to_representation(instance)
-        data['email'] = instance.user.email
+        data = {
+            'token': self.get_token(instance),
+            'fullname': instance.user.userprofile.fullname,
+            'email': instance.user.email,
+            'user_id': instance.id,
+        }
+
         return data
 
 
@@ -100,9 +105,7 @@ class LoginSerializer(serializers.Serializer):
         return self.context.get('token')
 
     def to_representation(self, instance):
-        """
-        Convert the logged-in User instance into response JSON.
-        """
+        """Customize the final API response."""
 
         data = {
             'token': self.get_token(instance),
