@@ -1,31 +1,34 @@
 from django.db.models import Count, Prefetch, Q
+from rest_framework import status
 from rest_framework.generics import (
     ListCreateAPIView,
     RetrieveUpdateDestroyAPIView,
 )
 from rest_framework.permissions import IsAuthenticated
+from rest_framework.response import Response
 
 from kanban_app.boards.models import Board
 from kanban_app.tasks.models import Task
 
 from .permissions import BoardPermission
 from .serializers import (
+    BoardCreateSerializer,
     BoardDetailSerializer,
-    BoardListSerializer,
+    BoardSummarySerializer,
     BoardUpdateSerializer,
 )
 
 
 class BoardListView(ListCreateAPIView):
     """
-    List all accessible boards and create new boards.
+    API view used to list boards and create new boards.
     """
 
-    serializer_class = BoardListSerializer
+    serializer_class = BoardSummarySerializer
     permission_classes = [IsAuthenticated]
 
     def get_queryset(self):  # type: ignore
-        """Defines the optimized query path used by ALL HTTP verbs."""
+        """Return the boards that the current logged-in user is allowed to see."""
 
         user_profile = getattr(self.request.user, 'userprofile', None)
 
@@ -36,14 +39,39 @@ class BoardListView(ListCreateAPIView):
 
         return self.get_annotated_queryset().filter(id__in=accessible_board_ids)
 
-    def perform_create(self, serializer):
-        """Handles Post-Creation Optimization for POST endpoints."""
-        instance = serializer.save()
-        serializer.instance = self.get_queryset().get(pk=instance.pk)
+    def get_serializer_class(self):  # type: ignore
+        """Choose which serializer should be used for the current request."""
+
+        if self.request.method == 'POST':
+            return BoardCreateSerializer
+
+        return BoardSummarySerializer
+
+    def create(self, request, *args, **kwargs):
+        """Create a new board and return the created board as a summary."""
+
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+
+        owner = request.user.userprofile
+        members = serializer.validated_data['members']
+
+        board = serializer.save(owner=owner)
+        board.members.set(members)
+
+        board = self.get_queryset().get(pk=board.pk)
+
+        response_serializer = BoardSummarySerializer(board)
+
+        return Response(
+            response_serializer.data,
+            status=status.HTTP_201_CREATED,
+        )
 
     def get_annotated_queryset(self):
         """
-        Return boards with aggregated statistics and optimized relations.
+        Return boards with extra calculated statistics.
+        This method builds an optimized queryset for Board objects.
         """
 
         return (
@@ -69,19 +97,25 @@ class BoardListView(ListCreateAPIView):
 
 
 class BoardDetailView(RetrieveUpdateDestroyAPIView):
-    """Retrieve, update, or delete a specific board."""
+    """
+    API view for working with one specific board.
+    This view supports three main actions:
+        Retrieve, update, or delete a specific board.
+    """
 
     permission_classes = [IsAuthenticated, BoardPermission]
     lookup_url_kwarg = 'board_id'
 
     def get_serializer_class(self):  # type: ignore
-        """Choose the right serializer based on the action."""
+        """Choose which serializer should be used for the current request."""
+
         if self.request.method in ['PUT', 'PATCH']:
             return BoardUpdateSerializer
+
         return BoardDetailSerializer
 
     def get_queryset(self):  # type: ignore
-        """Get the board with optimized task relations and comment aggregations."""
+        """Return the queryset used to find boards for this view."""
 
         tasks_queryset = Task.objects.select_related(
             'assignee__user',
@@ -96,14 +130,10 @@ class BoardDetailView(RetrieveUpdateDestroyAPIView):
         )
 
     def perform_update(self, serializer):
-        """Handles Post-Write Optimization at the View Layer."""
+        """Re-fetch the updated board with optimized relations before returning it."""
 
-        # Serializer save the database records atomically
         instance = serializer.save()
 
-        # View re-fetches instance using the main query path.
-        # This safely blows away old prefetch caches and re-links joins
         optimized_instance = self.get_queryset().get(pk=instance.pk)
 
-        # Assign the fresh data back to the serializer for an optimized JSON payload
         serializer.instance = optimized_instance

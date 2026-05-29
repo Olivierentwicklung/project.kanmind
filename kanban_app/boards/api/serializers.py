@@ -5,35 +5,24 @@ from kanban_app.boards.models import Board
 from kanban_app.tasks.models import Task
 
 
-class BoardListSerializer(serializers.ModelSerializer):
+class BoardSummarySerializer(serializers.ModelSerializer):
     """
-    Serializer for listing and creating boards.
+    Serializer used to show a short summary of a Board.
     """
-
-    # Allow clients to pass members IDs when creating or updating
-    members = serializers.PrimaryKeyRelatedField(
-        queryset=UserProfile.objects.all(),
-        many=True,
-        # write_only fields are accepted in requests
-        # but excluded from API responses
-        write_only=True,
-        allow_empty=False,
-    )
 
     member_count = serializers.IntegerField(read_only=True)
     ticket_count = serializers.IntegerField(read_only=True)
     tasks_to_do_count = serializers.IntegerField(read_only=True)
     tasks_high_prio_count = serializers.IntegerField(read_only=True)
-    owner_id = serializers.IntegerField(source='owner.id', read_only=True)
+    owner_id = serializers.IntegerField(source='owner.user.id', read_only=True)
 
     class Meta:
-        """return values of the BoardListSerializer"""
+        """Configuration class for BoardSummarySerializer."""
 
         model = Board
         fields = [
             'id',
             'title',
-            'members',
             'member_count',
             'ticket_count',
             'tasks_to_do_count',
@@ -41,28 +30,35 @@ class BoardListSerializer(serializers.ModelSerializer):
             'owner_id',
         ]
 
-    def create(self, validated_data):
-        """Create a new board instance with the current user as owner."""
 
-        # Inject the authenticated user as the owner directly into validated_data
-        user_profile = getattr(self.context['request'].user, 'userprofile', None)
-        validated_data['owner'] = user_profile
+class BoardCreateSerializer(serializers.ModelSerializer):
+    """Serializer used to create a new Board."""
 
-        # Let DRF handle the relational popping, saving, and junction table
-        # writing natively
-        return super().create(validated_data)
-
-
-class BoardUserProfileSerializer(serializers.ModelSerializer):
-    """
-    Serializer for board member information.
-    """
-
-    email = serializers.EmailField(source='user.email')
+    members = serializers.PrimaryKeyRelatedField(
+        queryset=UserProfile.objects.select_related('user'),
+        many=True,
+        required=True,
+        allow_empty=False,
+    )
 
     class Meta:
-        """return values of the BoardUserProfileSerializer"""
+        """Configuration class for BoardCreateSerializer."""
 
+        model = Board
+        fields = [
+            'title',
+            'members',
+        ]
+
+
+class BoardMemberSerializer(serializers.ModelSerializer):
+    """
+    Serializer for showing a board member inside a board detail response.
+    """
+
+    email = serializers.EmailField(source='user.email', read_only=True)
+
+    class Meta:
         model = UserProfile
         fields = [
             'id',
@@ -71,18 +67,16 @@ class BoardUserProfileSerializer(serializers.ModelSerializer):
         ]
 
 
-class BoardTaskSerializer(serializers.ModelSerializer):
+class BoardTaskSummarySerializer(serializers.ModelSerializer):
     """
-    Serializer for board task overview data.
+    Serializer for showing a short task overview inside a board detail response.
     """
 
-    assignee = BoardUserProfileSerializer(read_only=True)
-    reviewer = BoardUserProfileSerializer(read_only=True)
+    assignee = BoardMemberSerializer(read_only=True)
+    reviewer = BoardMemberSerializer(read_only=True)
     comments_count = serializers.IntegerField(read_only=True)
 
     class Meta:
-        """return values of the BoardTaskSerializer"""
-
         model = Task
         fields = [
             'id',
@@ -99,16 +93,14 @@ class BoardTaskSerializer(serializers.ModelSerializer):
 
 class BoardDetailSerializer(serializers.ModelSerializer):
     """
-    Serializer for detailed board information.
+    Serializer for retrieving detailed information about one board.
     """
 
     owner_id = serializers.IntegerField(source='owner.id', read_only=True)
-    members = BoardUserProfileSerializer(many=True, read_only=True)
-    tasks = BoardTaskSerializer(many=True, read_only=True)
+    members = BoardMemberSerializer(many=True, read_only=True)
+    tasks = BoardTaskSummarySerializer(many=True, read_only=True)
 
     class Meta:
-        """return values of the BoardDetailSerializer"""
-
         model = Board
         fields = [
             'id',
@@ -121,10 +113,9 @@ class BoardDetailSerializer(serializers.ModelSerializer):
 
 class BoardUpdateSerializer(serializers.ModelSerializer):
     """
-    Serializer for updating board data and members.
+    Serializer for updating an existing board.
     """
 
-    # Allow clients to pass members IDs when creating or updating
     members = serializers.PrimaryKeyRelatedField(
         queryset=UserProfile.objects.all(),
         many=True,
@@ -132,19 +123,19 @@ class BoardUpdateSerializer(serializers.ModelSerializer):
         allow_empty=False,
     )
 
-    owner_data = BoardUserProfileSerializer(
+    owner_data = BoardMemberSerializer(
         source='owner',
         read_only=True,
     )
 
-    members_data = BoardUserProfileSerializer(
+    members_data = BoardMemberSerializer(
         source='members',
         many=True,
         read_only=True,
     )
 
     class Meta:
-        """return values of the BoardUpdateSerializer"""
+        """Configuration for BoardUpdateSerializer."""
 
         model = Board
         fields = [
