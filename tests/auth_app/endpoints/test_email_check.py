@@ -1,5 +1,3 @@
-from unittest.mock import patch
-
 import pytest
 from rest_framework import status
 
@@ -68,13 +66,10 @@ def test_email_check_returns_404_when_email_does_not_exist(auth_user_client):
 
 @pytest.mark.django_db
 def test_email_check_returns_500_when_unexpected_error_happens(
-    auth_user_client, user_profile
+    auth_user_client, user_profile, force_db_crash
 ):
 
-    with patch(
-        'auth_app.api.views.User.objects.get',
-        side_effect=Exception('Unexpected database error'),
-    ):
+    with force_db_crash:
         response = auth_user_client.get(
             EMAIL_CHECK_URL,
             {'email': user_profile.user.email},
