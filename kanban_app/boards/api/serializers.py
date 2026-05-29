@@ -39,6 +39,7 @@ class BoardCreateSerializer(serializers.ModelSerializer):
         many=True,
         required=True,
         allow_empty=False,
+        write_only=True,
     )
 
     class Meta:
@@ -121,6 +122,7 @@ class BoardUpdateSerializer(serializers.ModelSerializer):
         many=True,
         required=False,
         allow_empty=False,
+        write_only=True,
     )
 
     owner_data = BoardMemberSerializer(
