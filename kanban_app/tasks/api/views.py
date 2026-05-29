@@ -24,14 +24,14 @@ from .serializers import (
 
 class AssignedTasksView(ListAPIView):
     """
-    List tasks assigned to the authenticated user.
+    API view for listing tasks assigned to the currently logged-in user.
     """
 
     serializer_class = TaskSerializer
     permission_classes = [IsAuthenticated]
 
     def get_queryset(self):  # type: ignore
-        """Get List tasks assigned to the authenticated user."""
+        """Return all tasks assigned to the authenticated user."""
 
         user_profile = getattr(self.request.user, 'userprofile', None)
 
