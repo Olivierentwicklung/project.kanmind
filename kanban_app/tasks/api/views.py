@@ -50,14 +50,14 @@ class AssignedTasksView(ListAPIView):
 
 class ReviewTasksView(ListAPIView):
     """
-    List tasks assigned to the authenticated reviewer.
+    API view for listing tasks where the current user is the reviewer.
     """
 
     serializer_class = TaskSerializer
     permission_classes = [IsAuthenticated]
 
     def get_queryset(self):  # type: ignore
-        """Get List tasks assigned to the authenticated reviewer."""
+        """Return all tasks assigned to the authenticated user as reviewer."""
 
         user_profile = getattr(self.request.user, 'userprofile', None)
 
