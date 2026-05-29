@@ -1,15 +1,16 @@
 from django.contrib.auth.models import User
 from django.db import transaction
+from django.shortcuts import get_object_or_404
 from rest_framework import generics, status
 from rest_framework.authtoken.models import Token
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
-from rest_framework.views import APIView
 
 from auth_app.models import UserProfile
 
 from .serializers import (
-    EmailCheckSerializer,
+    CheckEmailQuerySerializer,
+    CheckEmailResponseSerializer,
     LoginSerializer,
     RegistrationSerializer,
 )
@@ -48,7 +49,7 @@ class RegistrationView(generics.CreateAPIView):
 
 class LoginView(generics.GenericAPIView):
     """
-    API view for user login.
+    API view used to log in a user.
     """
 
     serializer_class = LoginSerializer
@@ -56,7 +57,7 @@ class LoginView(generics.GenericAPIView):
 
     def post(self, request, *args, **kwargs):
         """
-        Validate login data and return token response.
+        Validate login data and return the login response.
         """
 
         serializer = self.get_serializer(data=request.data)
@@ -75,41 +76,31 @@ class LoginView(generics.GenericAPIView):
         )
 
 
-class EmailCheckView(APIView):
+class EmailCheckView(generics.RetrieveAPIView):
     """
-    Check whether a user exists by email address.
+    API view used to check if an email belongs to an existing user.
     """
 
+    serializer_class = CheckEmailResponseSerializer
     permission_classes = [IsAuthenticated]
 
-    def get(self, request):
+    def get_queryset(self):  # type:ignore
         """
-        Check whether a user exists by email address.
+        gets UserProfile and User together
         """
-        serializer = EmailCheckSerializer(data=request.query_params)
 
-        if not serializer.is_valid():
-            return Response(
-                serializer.errors,
-                status=status.HTTP_400_BAD_REQUEST,
-            )
+        return UserProfile.objects.select_related('user')
 
-        email = serializer.validated_data['email']  # type:ignore
+    def get_object(self):  # type:ignore
+        """
+        Return the single UserProfile object for the requested email.
+        """
+        query_serializer = CheckEmailQuerySerializer(data=self.request.query_params)  # type:ignore
+        query_serializer.is_valid(raise_exception=True)
 
-        try:
-            user = User.objects.get(email=email)
+        email = query_serializer.validated_data['email']  # type:ignore
 
-            return Response(
-                {
-                    'id': user.id,  # type:ignore
-                    'email': user.email,
-                    'fullname': user.userprofile.fullname,  # type:ignore
-                },
-                status=status.HTTP_200_OK,
-            )
-
-        except User.DoesNotExist:
-            return Response(
-                {'detail': 'Email not found.'},
-                status=status.HTTP_404_NOT_FOUND,
-            )
+        return get_object_or_404(
+            self.get_queryset(),
+            user__email=email,
+        )

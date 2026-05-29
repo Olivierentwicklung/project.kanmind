@@ -60,7 +60,7 @@ class RegistrationSerializer(serializers.ModelSerializer):
 
         data = {
             'token': self.get_token(instance),
-            'fullname': instance.user.userprofile.fullname,
+            'fullname': instance.fullname,
             'email': instance.user.email,
             'user_id': instance.id,
         }
@@ -70,7 +70,7 @@ class RegistrationSerializer(serializers.ModelSerializer):
 
 class LoginSerializer(serializers.Serializer):
     """
-    Serializer for user login.
+    Serializer used for logging in a user.
     """
 
     email = serializers.EmailField(write_only=True)
@@ -80,7 +80,7 @@ class LoginSerializer(serializers.Serializer):
 
     def validate(self, attrs):
         """
-        Check if email and password are correct.
+        Validate the complete login data.
         """
 
         email = attrs['email']
@@ -117,9 +117,21 @@ class LoginSerializer(serializers.Serializer):
         return data
 
 
-class EmailCheckSerializer(serializers.Serializer):
+class CheckEmailQuerySerializer(serializers.Serializer):
     """
-    Serializer for email existence/validation checks.
+    Serializer used to validate the query parameters for checking an email.
+    This serializer is used for input only.
     """
 
     email = serializers.EmailField()
+
+
+class CheckEmailResponseSerializer(serializers.Serializer):
+    """
+    Serializer used to format the response for the check-email endpoint.
+    This serializer is used for output only.
+    """
+
+    id = serializers.IntegerField(source='user.id')
+    email = serializers.EmailField(source='user.email')
+    fullname = serializers.CharField()
