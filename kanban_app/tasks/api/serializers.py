@@ -6,15 +6,18 @@ from kanban_app.boards.models import Board
 from kanban_app.tasks.models import Comment, Task
 
 
-class TaskUserProfileSerializer(serializers.ModelSerializer):
+class TaskUserSerializer(serializers.ModelSerializer):
     """
-    Serializer for task-related user information.
+    Serializer for showing user information inside task responses.
     """
 
-    email = serializers.EmailField(source='user.email')
+    email = serializers.EmailField(
+        source='user.email',
+        read_only=True,
+    )
 
     class Meta:
-        """return values of the TaskUserProfileSerializer"""
+        """Configuration for TaskUserSerializer."""
 
         model = UserProfile
         fields = [
@@ -26,15 +29,15 @@ class TaskUserProfileSerializer(serializers.ModelSerializer):
 
 class TaskSerializer(serializers.ModelSerializer):
     """
-    Serializer for task overview and detail responses.
+    Serializer for showing task information.
     """
 
-    assignee = TaskUserProfileSerializer(read_only=True)
-    reviewer = TaskUserProfileSerializer(read_only=True)
+    assignee = TaskUserSerializer(read_only=True)
+    reviewer = TaskUserSerializer(read_only=True)
     comments_count = serializers.IntegerField(read_only=True)
 
     class Meta:
-        """return values of the TaskSerializer"""
+        """Configuration for TaskSerializer."""
 
         model = Task
         fields = [
@@ -169,15 +172,11 @@ class TaskCreateSerializer(serializers.ModelSerializer):
 
         # 2. Swap out flat _id fields for nested detailed object structures
         representation['assignee'] = (
-            TaskUserProfileSerializer(instance.assignee).data
-            if instance.assignee
-            else None
+            TaskUserSerializer(instance.assignee).data if instance.assignee else None
         )
 
         representation['reviewer'] = (
-            TaskUserProfileSerializer(instance.reviewer).data
-            if instance.reviewer
-            else None
+            TaskUserSerializer(instance.reviewer).data if instance.reviewer else None
         )
 
         # 3. Clean up the flat keys so they don't pollute the final output
@@ -270,15 +269,11 @@ class TaskUpdateSerializer(serializers.ModelSerializer):
 
         # 2. Swap out flat _id fields for nested detailed object structures
         representation['assignee'] = (
-            TaskUserProfileSerializer(instance.assignee).data
-            if instance.assignee
-            else None
+            TaskUserSerializer(instance.assignee).data if instance.assignee else None
         )
 
         representation['reviewer'] = (
-            TaskUserProfileSerializer(instance.reviewer).data
-            if instance.reviewer
-            else None
+            TaskUserSerializer(instance.reviewer).data if instance.reviewer else None
         )
 
         # 3. Clean up the flat keys so they don't pollute the final output
