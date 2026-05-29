@@ -5,35 +5,24 @@ from kanban_app.boards.models import Board
 from kanban_app.tasks.models import Task
 
 
-class BoardListSerializer(serializers.ModelSerializer):
+class BoardSummarySerializer(serializers.ModelSerializer):
     """
-    Serializer for listing and creating boards.
+    Serializer used to show a short summary of a Board.
     """
-
-    # Allow clients to pass members IDs when creating or updating
-    members = serializers.PrimaryKeyRelatedField(
-        queryset=UserProfile.objects.all(),
-        many=True,
-        # write_only fields are accepted in requests
-        # but excluded from API responses
-        write_only=True,
-        allow_empty=False,
-    )
 
     member_count = serializers.IntegerField(read_only=True)
     ticket_count = serializers.IntegerField(read_only=True)
     tasks_to_do_count = serializers.IntegerField(read_only=True)
     tasks_high_prio_count = serializers.IntegerField(read_only=True)
-    owner_id = serializers.IntegerField(source='owner.id', read_only=True)
+    owner_id = serializers.IntegerField(source='owner.user.id', read_only=True)
 
     class Meta:
-        """return values of the BoardListSerializer"""
+        """Configuration class for BoardSummarySerializer."""
 
         model = Board
         fields = [
             'id',
             'title',
-            'members',
             'member_count',
             'ticket_count',
             'tasks_to_do_count',
@@ -41,16 +30,25 @@ class BoardListSerializer(serializers.ModelSerializer):
             'owner_id',
         ]
 
-    def create(self, validated_data):
-        """Create a new board instance with the current user as owner."""
 
-        # Inject the authenticated user as the owner directly into validated_data
-        user_profile = getattr(self.context['request'].user, 'userprofile', None)
-        validated_data['owner'] = user_profile
+class BoardCreateSerializer(serializers.ModelSerializer):
+    """Serializer used to create a new Board."""
 
-        # Let DRF handle the relational popping, saving, and junction table
-        # writing natively
-        return super().create(validated_data)
+    members = serializers.PrimaryKeyRelatedField(
+        queryset=UserProfile.objects.select_related('user'),
+        many=True,
+        required=True,
+        allow_empty=False,
+    )
+
+    class Meta:
+        """Configuration class for BoardCreateSerializer."""
+
+        model = Board
+        fields = [
+            'title',
+            'members',
+        ]
 
 
 class BoardUserProfileSerializer(serializers.ModelSerializer):
