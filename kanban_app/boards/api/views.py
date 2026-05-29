@@ -97,19 +97,25 @@ class BoardListView(ListCreateAPIView):
 
 
 class BoardDetailView(RetrieveUpdateDestroyAPIView):
-    """Retrieve, update, or delete a specific board."""
+    """
+    API view for working with one specific board.
+    This view supports three main actions:
+        Retrieve, update, or delete a specific board.
+    """
 
     permission_classes = [IsAuthenticated, BoardPermission]
     lookup_url_kwarg = 'board_id'
 
     def get_serializer_class(self):  # type: ignore
-        """Choose the right serializer based on the action."""
+        """Choose which serializer should be used for the current request."""
+
         if self.request.method in ['PUT', 'PATCH']:
             return BoardUpdateSerializer
+
         return BoardDetailSerializer
 
     def get_queryset(self):  # type: ignore
-        """Get the board with optimized task relations and comment aggregations."""
+        """Return the queryset used to find boards for this view."""
 
         tasks_queryset = Task.objects.select_related(
             'assignee__user',
@@ -124,14 +130,10 @@ class BoardDetailView(RetrieveUpdateDestroyAPIView):
         )
 
     def perform_update(self, serializer):
-        """Handles Post-Write Optimization at the View Layer."""
+        """Re-fetch the updated board with optimized relations before returning it."""
 
-        # Serializer save the database records atomically
         instance = serializer.save()
 
-        # View re-fetches instance using the main query path.
-        # This safely blows away old prefetch caches and re-links joins
         optimized_instance = self.get_queryset().get(pk=instance.pk)
 
-        # Assign the fresh data back to the serializer for an optimized JSON payload
         serializer.instance = optimized_instance

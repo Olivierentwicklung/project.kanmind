@@ -51,16 +51,14 @@ class BoardCreateSerializer(serializers.ModelSerializer):
         ]
 
 
-class BoardUserProfileSerializer(serializers.ModelSerializer):
+class BoardMemberSerializer(serializers.ModelSerializer):
     """
-    Serializer for board member information.
+    Serializer for showing a board member inside a board detail response.
     """
 
-    email = serializers.EmailField(source='user.email')
+    email = serializers.EmailField(source='user.email', read_only=True)
 
     class Meta:
-        """return values of the BoardUserProfileSerializer"""
-
         model = UserProfile
         fields = [
             'id',
@@ -69,18 +67,16 @@ class BoardUserProfileSerializer(serializers.ModelSerializer):
         ]
 
 
-class BoardTaskSerializer(serializers.ModelSerializer):
+class BoardTaskSummarySerializer(serializers.ModelSerializer):
     """
-    Serializer for board task overview data.
+    Serializer for showing a short task overview inside a board detail response.
     """
 
-    assignee = BoardUserProfileSerializer(read_only=True)
-    reviewer = BoardUserProfileSerializer(read_only=True)
+    assignee = BoardMemberSerializer(read_only=True)
+    reviewer = BoardMemberSerializer(read_only=True)
     comments_count = serializers.IntegerField(read_only=True)
 
     class Meta:
-        """return values of the BoardTaskSerializer"""
-
         model = Task
         fields = [
             'id',
@@ -97,16 +93,14 @@ class BoardTaskSerializer(serializers.ModelSerializer):
 
 class BoardDetailSerializer(serializers.ModelSerializer):
     """
-    Serializer for detailed board information.
+    Serializer for retrieving detailed information about one board.
     """
 
     owner_id = serializers.IntegerField(source='owner.id', read_only=True)
-    members = BoardUserProfileSerializer(many=True, read_only=True)
-    tasks = BoardTaskSerializer(many=True, read_only=True)
+    members = BoardMemberSerializer(many=True, read_only=True)
+    tasks = BoardTaskSummarySerializer(many=True, read_only=True)
 
     class Meta:
-        """return values of the BoardDetailSerializer"""
-
         model = Board
         fields = [
             'id',
@@ -119,10 +113,9 @@ class BoardDetailSerializer(serializers.ModelSerializer):
 
 class BoardUpdateSerializer(serializers.ModelSerializer):
     """
-    Serializer for updating board data and members.
+    Serializer for updating an existing board.
     """
 
-    # Allow clients to pass members IDs when creating or updating
     members = serializers.PrimaryKeyRelatedField(
         queryset=UserProfile.objects.all(),
         many=True,
@@ -130,19 +123,19 @@ class BoardUpdateSerializer(serializers.ModelSerializer):
         allow_empty=False,
     )
 
-    owner_data = BoardUserProfileSerializer(
+    owner_data = BoardMemberSerializer(
         source='owner',
         read_only=True,
     )
 
-    members_data = BoardUserProfileSerializer(
+    members_data = BoardMemberSerializer(
         source='members',
         many=True,
         read_only=True,
     )
 
     class Meta:
-        """return values of the BoardUpdateSerializer"""
+        """Configuration for BoardUpdateSerializer."""
 
         model = Board
         fields = [
