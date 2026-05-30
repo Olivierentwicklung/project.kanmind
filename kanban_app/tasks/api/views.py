@@ -204,7 +204,32 @@ class TaskDetailView(RetrieveUpdateDestroyAPIView):
         serializer.instance = self.get_queryset().get(pk=instance.pk)
 
 
-class TaskCommentsView(ListCreateAPIView):
+class TaskAccessMixin:
+    def get_task(self):
+        if hasattr(self, '_task'):
+            return self._task
+
+        task = get_object_or_404(
+            Task.objects.select_related('board'),
+            id=self.kwargs['task_id'],  # type:ignore
+        )
+
+        user_profile = getattr(self.request.user, 'userprofile', None)  # type:ignore
+
+        is_owner = task.board.owner_id == getattr(user_profile, 'id', None)
+
+        is_member = task.board.members.filter(
+            id=getattr(user_profile, 'id', None)
+        ).exists()
+
+        if not user_profile or not (is_owner or is_member):
+            raise PermissionDenied('You must be a board member to access this task.')
+
+        self._task = task
+        return task
+
+
+class TaskCommentsView(TaskAccessMixin, ListCreateAPIView):
     """
     List and create comments for a task using optimized query flows.
     """
@@ -212,30 +237,6 @@ class TaskCommentsView(ListCreateAPIView):
     serializer_class = CommentSerializer
 
     permission_classes = [IsAuthenticated, TaskPermission, CommentPermission]
-
-    def get_task(self):
-        if hasattr(self, '_task'):
-            return self._task
-
-        task = get_object_or_404(
-            Task.objects.select_related('board'),
-            id=self.kwargs['task_id'],
-        )
-
-        user_profile = getattr(self.request.user, 'userprofile', None)
-
-        is_owner = task.board.owner_id == getattr(user_profile, 'id', None)
-        is_member = task.board.members.filter(
-            id=getattr(user_profile, 'id', None)
-        ).exists()
-
-        if not user_profile or not (is_owner or is_member):
-            raise PermissionDenied(
-                'You must be a board member to access task comments.'
-            )
-
-        self._task = task
-        return task
 
     def get_queryset(self):  # type:ignore
         return (
@@ -251,7 +252,7 @@ class TaskCommentsView(ListCreateAPIView):
         serializer.save(task=task, author=author)
 
 
-class TaskCommentDetailView(DestroyAPIView):
+class TaskCommentDetailView(TaskAccessMixin, DestroyAPIView):
     """
     Delete a task comment safely with ownership checks.
     """
@@ -260,25 +261,10 @@ class TaskCommentDetailView(DestroyAPIView):
     permission_classes = [IsAuthenticated, CommentPermission]
     lookup_url_kwarg = 'comment_id'
 
-    def get_object(self) -> Comment:  # type: ignore
-        """
-        Get the task comment by id while ensuring it belongs to the specified task.
-        """
-
-        # Ensure the task exists first
-        task = get_object_or_404(
-            Task,
-            id=self.kwargs['task_id'],
+    def get_queryset(self):  # type:ignore
+        return Comment.objects.filter(task=self.get_task()).select_related(
+            'author__user', 'task__board'
         )
 
-        # Retrieve and return the specific comment object
-        comment = get_object_or_404(
-            Comment,
-            id=self.kwargs['comment_id'],
-            task=task,
-        )
-
-        # IMPORTANT
-        self.check_object_permissions(self.request, comment)
-
-        return comment
+    def perform_destroy(self, instance):
+        instance.delete()
