@@ -239,6 +239,7 @@ class TaskCommentsView(TaskAccessMixin, ListCreateAPIView):
     permission_classes = [IsAuthenticated, TaskPermission, CommentPermission]
 
     def get_queryset(self):  # type:ignore
+        """Return all  task comments"""
         return (
             Comment.objects.filter(task=self.get_task())
             .select_related('author__user')
@@ -262,9 +263,7 @@ class TaskCommentDetailView(TaskAccessMixin, DestroyAPIView):
     lookup_url_kwarg = 'comment_id'
 
     def get_queryset(self):  # type:ignore
+        """Return the comment"""
         return Comment.objects.filter(task=self.get_task()).select_related(
             'author__user', 'task__board'
         )
-
-    def perform_destroy(self, instance):
-        instance.delete()
