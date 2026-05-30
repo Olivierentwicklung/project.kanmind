@@ -1,8 +1,6 @@
 from rest_framework import serializers
-from rest_framework.exceptions import NotFound, PermissionDenied
 
 from auth_app.models import UserProfile
-from kanban_app.boards.models import Board
 from kanban_app.tasks.models import Comment, Task
 
 
@@ -56,32 +54,37 @@ class TaskSerializer(serializers.ModelSerializer):
 
 class TaskCreateSerializer(serializers.ModelSerializer):
     """
-    Serializer for task creation.
+    Serializer for creating a task.
+
+     This serializer is responsible for:
+    - receiving task creation data from the API request
+    - validating assignee and reviewer users
+    - making sure assignee/reviewer belong to the board
+    - automatically setting the task author
     """
 
-    # Links an optional UserProfile ID to the 'assignee' model relation
-    # and allows null values.
     assignee_id = serializers.PrimaryKeyRelatedField(
         queryset=UserProfile.objects.all(),
         source='assignee',
         required=False,
         allow_null=True,
+        write_only=True,
     )
 
-    # Links an optional UserProfile ID to the 'reviewer' model relation
-    # and allows null values.
     reviewer_id = serializers.PrimaryKeyRelatedField(
         queryset=UserProfile.objects.all(),
         source='reviewer',
         required=False,
         allow_null=True,
+        write_only=True,
     )
 
-    # Computed read-only field mapping to a property/annotation on your model
+    assignee = TaskUserSerializer(read_only=True)
+    reviewer = TaskUserSerializer(read_only=True)
     comments_count = serializers.IntegerField(read_only=True, default=0)
 
     class Meta:
-        """return values of the TaskCreateSerializer"""
+        """Configure fields for task creation."""
 
         model = Task
         fields = [
@@ -93,53 +96,27 @@ class TaskCreateSerializer(serializers.ModelSerializer):
             'priority',
             'assignee_id',
             'reviewer_id',
+            'assignee',
+            'reviewer',
             'due_date',
             'comments_count',
         ]
 
-    def to_internal_value(self, data):
-        """
-        Runs BEFORE field validation. Intercepts raw input to force
-        a 404 response if the referenced board ID is missing.
-        """
-        board_id = data.get('board')
-        if board_id is not None:
-            # Check the database before PrimaryKeyRelatedField throws a 400
-            if not Board.objects.filter(id=board_id).exists():
-                raise NotFound({'board': 'Board not found.'})  # Forces 404 response
-
-        return super().to_internal_value(data)
-
     def validate(self, attrs):
-        """Validate board permissions and user memberships in 1 query."""
-        board = attrs.get('board')
+        """Validate the incoming task data before creating the task."""
+
+        board = self.context.get('board') or attrs.get('board')
+
         if not board:
             return attrs
 
-        request = self.context['request']
-        user_profile = request.user.userprofile
-
-        # Fetch the board and prefetch members to optimize performance
-        # (The board is guaranteed to exist now because to_internal_value passed)
-        board_instance = Board.objects.prefetch_related('members').get(id=board.id)
-
-        # Cache valid user IDs in memory for fast O(1) lookups
-        valid_user_ids = set(board_instance.members.values_list('id', flat=True))
-
-        # Use getattr to fetch owner_id safely without a Pylance warning
-        owner_id = getattr(board_instance, 'owner_id', None)
-        if owner_id:
-            valid_user_ids.add(owner_id)
-
-        # SECURITY CHECK: Verify user permissions
-        if user_profile.id not in valid_user_ids:
-            raise PermissionDenied(
-                'You must be a board member to create tasks.'
-            )  # Forces 403 response
-
-        # DATA VALIDATION: Verify assignee and reviewer (returns default 400)
         assignee = attrs.get('assignee')
         reviewer = attrs.get('reviewer')
+
+        valid_user_ids = set(board.members.values_list('id', flat=True))
+
+        if board.owner:
+            valid_user_ids.add(board.owner.id)
 
         if assignee and assignee.id not in valid_user_ids:
             raise serializers.ValidationError(
@@ -154,36 +131,14 @@ class TaskCreateSerializer(serializers.ModelSerializer):
         return attrs
 
     def create(self, validated_data):
-        """Create a Task with the current user context as the author."""
+        """
+        Create the task and automatically set the authenticated user as author.
+        """
 
-        # Inject the authenticated user as the author directly into validated_data
         user_profile = getattr(self.context['request'].user, 'userprofile', None)
         validated_data['author'] = user_profile
 
-        # Let DRF handle the relational popping, saving, and junction table
-        # writing natively
         return super().create(validated_data)
-
-    def to_representation(self, instance):
-        """Dynamically morph keys to match the nested JSON response format."""
-
-        # 1. Get standard serialized dictionary data
-        representation = super().to_representation(instance)
-
-        # 2. Swap out flat _id fields for nested detailed object structures
-        representation['assignee'] = (
-            TaskUserSerializer(instance.assignee).data if instance.assignee else None
-        )
-
-        representation['reviewer'] = (
-            TaskUserSerializer(instance.reviewer).data if instance.reviewer else None
-        )
-
-        # 3. Clean up the flat keys so they don't pollute the final output
-        representation.pop('assignee_id', None)
-        representation.pop('reviewer_id', None)
-
-        return representation
 
 
 class TaskUpdateSerializer(serializers.ModelSerializer):

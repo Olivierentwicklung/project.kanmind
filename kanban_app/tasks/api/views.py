@@ -10,6 +10,7 @@ from rest_framework.generics import (
 )
 from rest_framework.permissions import IsAuthenticated
 
+from kanban_app.boards.models import Board
 from kanban_app.tasks.models import Comment, Task
 
 from .permissions import CommentPermission, TaskPermission
@@ -76,35 +77,72 @@ class ReviewTasksView(ListAPIView):
 
 class TaskCreateView(CreateAPIView):
     """
-    Create a new task.
+    API view for creating a task.
+
+    The view handles:
+    - authentication
+    - board lookup
+    - 404 if board does not exist
+    - 403 if user cannot create tasks on this board
+    - optimized response after creation
     """
 
     serializer_class = TaskCreateSerializer
     permission_classes = [IsAuthenticated]
 
-    def get_queryset(self):  # type:ignore
+    def get_board(self):
         """
-        Define the optimized queryset used to reload the created instance.
+        Find and return the Board object from the board ID sent in the request.
         """
+
+        board_id = self.request.data.get('board')  # type:ignore
+
+        return get_object_or_404(
+            Board.objects.prefetch_related('members'),
+            pk=board_id,
+        )
+
+    def get_serializer_context(self):
+        """
+        Add the board to the serializer context when it exists.
+        """
+
+        context = super().get_serializer_context()
+
+        if hasattr(self, 'board'):
+            context['board'] = self.board  # type:ignore
+
+        return context
+
+    def get_queryset(self):  # type: ignore
+        """
+        Return optimized task queryset for the response.
+        """
+
         return Task.objects.select_related(
             'board',
             'assignee__user',
             'reviewer__user',
-        ).annotate(comments_count=Count('comments', distinct=True))
+        ).annotate(
+            comments_count=Count('comments', distinct=True),
+        )
 
-    def perform_create(self, serializer):
+    def create(self, request, *args, **kwargs):
         """
-        Save the instance and immediately refresh it from the optimized queryset.
+        Create a task after board lookup and permission check.
+
+        If the board field is missing, let the serializer return 400.
         """
-        # 1. Save the instance to the database
-        instance = serializer.save()
 
-        # 2. Re-fetch the saved object using the optimized get_queryset() definition
-        optimized_instance = self.get_queryset().get(pk=instance.pk)
+        board_id = request.data.get('board')
 
-        # 3. Swap the raw instance with the optimized instance inside the serializer
-        # This forces DRF to use the pre-fetched & annotated data for the JSON response
-        serializer.instance = optimized_instance
+        if board_id is not None:
+            board = self.get_board()
+
+            if not board.user_has_access(request.user):
+                raise PermissionDenied('You must be a board member to create tasks.')
+
+        return super().create(request, *args, **kwargs)
 
 
 class TaskDetailView(RetrieveUpdateDestroyAPIView):
