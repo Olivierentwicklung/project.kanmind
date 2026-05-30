@@ -15,7 +15,6 @@ from kanban_app.tasks.models import Comment, Task
 
 from .permissions import CommentPermission, TaskPermission
 from .serializers import (
-    CommentCreateSerializer,
     CommentSerializer,
     TaskCreateSerializer,
     TaskSerializer,
@@ -210,85 +209,46 @@ class TaskCommentsView(ListCreateAPIView):
     List and create comments for a task using optimized query flows.
     """
 
+    serializer_class = CommentSerializer
+
     permission_classes = [IsAuthenticated, TaskPermission, CommentPermission]
 
-    def get_task_and_check_access(self) -> Task:
-        """
-        Fetch the task and enforce board membership permissions in a single cached step.
-        """
-        # Return the task instantly if it was already resolved during
-        # the request lifecycle
-        if hasattr(self, '_cached_task'):
-            return self._cached_task
+    def get_task(self):
+        if hasattr(self, '_task'):
+            return self._task
 
-        # Fetch task and follow relation to board to avoid N+1 queries
         task = get_object_or_404(
-            Task.objects.select_related('board'), id=self.kwargs['task_id']
+            Task.objects.select_related('board'),
+            id=self.kwargs['task_id'],
         )
 
         user_profile = getattr(self.request.user, 'userprofile', None)
-        board = task.board
 
-        # Extract valid user IDs cleanly to satisfy Pylance/Ruff
-        valid_user_ids = set(board.members.values_list('id', flat=True))
-        owner_id = getattr(board, 'owner_id', None)
-        if owner_id:
-            valid_user_ids.add(owner_id)
+        is_owner = task.board.owner_id == getattr(user_profile, 'id', None)
+        is_member = task.board.members.filter(
+            id=getattr(user_profile, 'id', None)
+        ).exists()
 
-        # Security Access Enforcement
-        if not user_profile or user_profile.id not in valid_user_ids:
+        if not user_profile or not (is_owner or is_member):
             raise PermissionDenied(
                 'You must be a board member to access task comments.'
             )
 
-        # Cache instance on the view thread to prevent double-database fetching
-        self._cached_task = task
+        self._task = task
         return task
 
-    def get_serializer_class(self):  # type: ignore
-        """Choose the right serializer dynamically based on HTTP method."""
-        if self.request.method == 'POST':
-            return CommentCreateSerializer
-        return CommentSerializer
-
-    def get_serializer_context(self):
-        """
-        Inject the verified task object directly into the serializer context.
-        This provides the data needed for your CommentCreateSerializer
-        super().create() hook.
-        """
-        context = super().get_serializer_context()
-        context['task'] = self.get_task_and_check_access()
-        return context
-
-    def get_queryset(self):  # type: ignore
-        """
-        Return the optimized list of comments for the targeted task.
-        """
-        task = self.get_task_and_check_access()
-
+    def get_queryset(self):  # type:ignore
         return (
-            Comment.objects.filter(task=task)
+            Comment.objects.filter(task=self.get_task())
             .select_related('author__user')
             .order_by('created_at')
         )
 
     def perform_create(self, serializer):
-        """
-        Save the comment and instantly refresh its representation using
-        the optimized serialization layout.
-        """
-        # Save using the data already stored inside serializer.context['task']
-        comment = serializer.save()
+        task = self.get_task()
+        author = getattr(self.request.user, 'userprofile', None)
 
-        # Re-fetch the comment with all optimized select_related fields loaded
-        optimized_comment = Comment.objects.select_related('author__user').get(
-            pk=comment.pk
-        )
-
-        # Swap raw object with optimized data structure so DRF uses the correct
-        # format in the JSON response
-        serializer.instance = optimized_comment
+        serializer.save(task=task, author=author)
 
 
 class TaskCommentDetailView(DestroyAPIView):
@@ -296,6 +256,7 @@ class TaskCommentDetailView(DestroyAPIView):
     Delete a task comment safely with ownership checks.
     """
 
+    serializer_class = CommentSerializer
     permission_classes = [IsAuthenticated, CommentPermission]
     lookup_url_kwarg = 'comment_id'
 

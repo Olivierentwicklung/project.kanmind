@@ -267,22 +267,3 @@ class CommentSerializer(serializers.ModelSerializer):
             'author',
             'content',
         ]
-
-    def create(self, validated_data):
-        """
-        Create a Task Comment using context injections (view).
-        The task and author are not expected to come directly from
-        the client request body.
-
-        Instead:
-        - the task is taken from serializer context
-        - the author is taken from the logged-in user
-        """
-
-        task = self.context['task']
-        author = getattr(self.context['request'].user, 'userprofile', None)
-
-        validated_data['task'] = task
-        validated_data['author'] = author
-
-        return super().create(validated_data)
