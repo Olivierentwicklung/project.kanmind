@@ -244,7 +244,12 @@ class TaskUpdateSerializer(BaseTaskSerializer):
 
 class CommentSerializer(serializers.ModelSerializer):
     """
-    Serializer for task comments.
+    This serializer is used for task comments.
+
+    It controls:
+    - which comment fields are shown in the API response
+    - how a new comment is created
+    - how the comment author and task are automatically assigned
     """
 
     author = serializers.CharField(
@@ -253,7 +258,7 @@ class CommentSerializer(serializers.ModelSerializer):
     )
 
     class Meta:
-        """return values of the CommentSerializer"""
+        """Configuration class for CommentSerializer."""
 
         model = Comment
         fields = [
@@ -262,26 +267,3 @@ class CommentSerializer(serializers.ModelSerializer):
             'author',
             'content',
         ]
-
-
-class CommentCreateSerializer(serializers.ModelSerializer):
-    """Serializer used for handling comment validation and creation."""
-
-    class Meta:
-        model = Comment
-        fields = ['id', 'content']  # Ensure 'id' is present in fields array
-
-    def create(self, validated_data):
-        """Create a Task Comment using context injections."""
-        task = self.context['task']
-        author = getattr(self.context['request'].user, 'userprofile', None)
-
-        validated_data['task'] = task
-        validated_data['author'] = author
-
-        return super().create(validated_data)
-
-    def to_representation(self, instance):  # type:ignore
-        """Morph output data to use the complete read serializer format."""
-
-        return CommentSerializer(instance, context=self.context).data
