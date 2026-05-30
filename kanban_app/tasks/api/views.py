@@ -147,46 +147,62 @@ class TaskCreateView(CreateAPIView):
 
 class TaskDetailView(RetrieveUpdateDestroyAPIView):
     """
-    Retrieve, update, or delete a task.
+    API view used to retrieve, update, or delete a single task.
+
+    Supported actions:
+    - GET: retrieve task details
+    - PATCH: partially update task fields
+    - PUT: fully update task fields
+    - DELETE: delete the task
     """
 
     permission_classes = [IsAuthenticated, TaskPermission]
-
     lookup_url_kwarg = 'task_id'
 
-    def get_serializer_class(self):  # type:ignore
-        """Choose the right serializer"""
+    def get_serializer_class(self):  # type: ignore
+        """
+        Return the correct serializer depending on the request method.
+        """
 
-        if self.request.method == 'PATCH':
+        if self.request.method in ['PATCH', 'PUT']:
             return TaskUpdateSerializer
 
         return TaskSerializer
 
-    def get_queryset(self):  # type:ignore
-        """Defines the optimized query path used by ALL HTTP verbs."""
+    def get_queryset(self):  # type: ignore
+        """
+        Return the optimized queryset used to retrieve task objects.
 
-        # Optimize related object loading and comment aggregation
-        return Task.objects.select_related(
-            'board',
-            'board__owner',
-            'assignee__user',
-            'reviewer__user',
-            'author__user',
-        ).annotate(
-            comments_count=Count('comments', distinct=True),
+        Object permissions are handled by TaskPermission.
+        """
+
+        return (
+            Task.objects.select_related(
+                'board',
+                'board__owner',
+                'assignee__user',
+                'reviewer__user',
+                'author__user',
+            )
+            .prefetch_related(
+                'board__members',
+            )
+            .annotate(
+                comments_count=Count('comments', distinct=True),
+            )
         )
 
     def perform_update(self, serializer):
-        """Handles Post-Write Optimization at the View Layer."""
-        # A. Serializer runs database mutation safely
+        """
+        Save the task update and refresh the instance with optimized relations.
+
+        This makes sure the response contains fresh nested assignee/reviewer
+        data and the latest comments_count value.
+        """
+
         instance = serializer.save()
 
-        # B. View re-fetches instance using the main query path.
-        # This safely blows away old prefetch caches and re-links joins in 1 step!
-        optimized_instance = self.get_queryset().get(pk=instance.pk)
-
-        # C. Assign the fresh data back to the serializer for an optimized JSON payload
-        serializer.instance = optimized_instance
+        serializer.instance = self.get_queryset().get(pk=instance.pk)
 
 
 class TaskCommentsView(ListCreateAPIView):
