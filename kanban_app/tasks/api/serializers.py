@@ -1,5 +1,4 @@
 from rest_framework import serializers
-from rest_framework.exceptions import NotFound, PermissionDenied
 
 from auth_app.models import UserProfile
 from kanban_app.boards.models import Board
@@ -54,90 +53,43 @@ class TaskSerializer(serializers.ModelSerializer):
         ]
 
 
-class TaskCreateSerializer(serializers.ModelSerializer):
+class TaskAssignmentValidationMixin:
     """
-    Serializer for task creation.
+    Mixin that contains shared validation logic for task users.
+
+    A mixin is a class that is not usually used by itself.
+    Instead, it is inherited by other classes to reuse common behavior.
+
+    This mixin validates that the users assigned to a task are allowed
+    to be connected to that task.
+
+    It checks two task-related users:
+    - assignee: the person who will work on the task
+    - reviewer: the person who will review the task
+
+    Both users must be either:
+    - members of the board
+    - or the owner of the board
     """
 
-    # Links an optional UserProfile ID to the 'assignee' model relation
-    # and allows null values.
-    assignee_id = serializers.PrimaryKeyRelatedField(
-        queryset=UserProfile.objects.all(),
-        source='assignee',
-        required=False,
-        allow_null=True,
-    )
-
-    # Links an optional UserProfile ID to the 'reviewer' model relation
-    # and allows null values.
-    reviewer_id = serializers.PrimaryKeyRelatedField(
-        queryset=UserProfile.objects.all(),
-        source='reviewer',
-        required=False,
-        allow_null=True,
-    )
-
-    # Computed read-only field mapping to a property/annotation on your model
-    comments_count = serializers.IntegerField(read_only=True, default=0)
-
-    class Meta:
-        """return values of the TaskCreateSerializer"""
-
-        model = Task
-        fields = [
-            'id',
-            'board',
-            'title',
-            'description',
-            'status',
-            'priority',
-            'assignee_id',
-            'reviewer_id',
-            'due_date',
-            'comments_count',
-        ]
-
-    def to_internal_value(self, data):
+    def validate_task_users(self, board, attrs):
         """
-        Runs BEFORE field validation. Intercepts raw input to force
-        a 404 response if the referenced board ID is missing.
+        Validate that the task assignee and reviewer belong to the board.
+
+        Args:
+            board (Board): The board connected to the task.
+            attrs (dict): Serializer validated data.
+
+        Raises:
+            serializers.ValidationError:
+                If assignee or reviewer is not a board member or owner.
         """
-        board_id = data.get('board')
-        if board_id is not None:
-            # Check the database before PrimaryKeyRelatedField throws a 400
-            if not Board.objects.filter(id=board_id).exists():
-                raise NotFound({'board': 'Board not found.'})  # Forces 404 response
 
-        return super().to_internal_value(data)
+        valid_user_ids = set(board.members.values_list('id', flat=True))
 
-    def validate(self, attrs):
-        """Validate board permissions and user memberships in 1 query."""
-        board = attrs.get('board')
-        if not board:
-            return attrs
+        if board.owner:
+            valid_user_ids.add(board.owner.id)
 
-        request = self.context['request']
-        user_profile = request.user.userprofile
-
-        # Fetch the board and prefetch members to optimize performance
-        # (The board is guaranteed to exist now because to_internal_value passed)
-        board_instance = Board.objects.prefetch_related('members').get(id=board.id)
-
-        # Cache valid user IDs in memory for fast O(1) lookups
-        valid_user_ids = set(board_instance.members.values_list('id', flat=True))
-
-        # Use getattr to fetch owner_id safely without a Pylance warning
-        owner_id = getattr(board_instance, 'owner_id', None)
-        if owner_id:
-            valid_user_ids.add(owner_id)
-
-        # SECURITY CHECK: Verify user permissions
-        if user_profile.id not in valid_user_ids:
-            raise PermissionDenied(
-                'You must be a board member to create tasks.'
-            )  # Forces 403 response
-
-        # DATA VALIDATION: Verify assignee and reviewer (returns default 400)
         assignee = attrs.get('assignee')
         reviewer = attrs.get('reviewer')
 
@@ -151,136 +103,143 @@ class TaskCreateSerializer(serializers.ModelSerializer):
                 {'reviewer_id': 'Reviewer must be a board member or owner.'}
             )
 
-        return attrs
 
-    def create(self, validated_data):
-        """Create a Task with the current user context as the author."""
-
-        # Inject the authenticated user as the author directly into validated_data
-        user_profile = getattr(self.context['request'].user, 'userprofile', None)
-        validated_data['author'] = user_profile
-
-        # Let DRF handle the relational popping, saving, and junction table
-        # writing natively
-        return super().create(validated_data)
-
-    def to_representation(self, instance):
-        """Dynamically morph keys to match the nested JSON response format."""
-
-        # 1. Get standard serialized dictionary data
-        representation = super().to_representation(instance)
-
-        # 2. Swap out flat _id fields for nested detailed object structures
-        representation['assignee'] = (
-            TaskUserSerializer(instance.assignee).data if instance.assignee else None
-        )
-
-        representation['reviewer'] = (
-            TaskUserSerializer(instance.reviewer).data if instance.reviewer else None
-        )
-
-        # 3. Clean up the flat keys so they don't pollute the final output
-        representation.pop('assignee_id', None)
-        representation.pop('reviewer_id', None)
-
-        return representation
-
-
-class TaskUpdateSerializer(serializers.ModelSerializer):
+class BaseTaskSerializer(
+    TaskAssignmentValidationMixin,
+    serializers.ModelSerializer,
+):
     """
-    Serializer for updating existing tasks.
+    Base serializer shared by task create and task update serializers.
     """
 
-    # Links an optional UserProfile ID to the 'assignee' model relation
-    # and allows null values.
     assignee_id = serializers.PrimaryKeyRelatedField(
         queryset=UserProfile.objects.all(),
         source='assignee',
         required=False,
         allow_null=True,
+        write_only=True,
     )
 
-    # Links an optional UserProfile ID to the 'reviewer' model relation
-    # and allows null values.
     reviewer_id = serializers.PrimaryKeyRelatedField(
         queryset=UserProfile.objects.all(),
         source='reviewer',
         required=False,
         allow_null=True,
+        write_only=True,
     )
 
-    # Computed read-only field mapping to a property/annotation on your model
+    assignee = TaskUserSerializer(read_only=True)
+    reviewer = TaskUserSerializer(read_only=True)
+
+
+class TaskCreateSerializer(BaseTaskSerializer):
+    """
+    Serializer used when creating a new task.
+
+    This serializer controls:
+    - which fields can be sent when creating a task
+    - how task data is validated
+    - how the task author is automatically set
+    """
+
     comments_count = serializers.IntegerField(read_only=True, default=0)
 
     class Meta:
-        """return values of the TaskUpdateSerializer"""
+        """Meta configuration for TaskCreateSerializer."""
 
         model = Task
         fields = [
             'id',
+            'board',
             'title',
             'description',
             'status',
             'priority',
             'assignee_id',
             'reviewer_id',
+            'assignee',
+            'reviewer',
             'due_date',
             'comments_count',
         ]
 
     def validate(self, attrs):
-        """
-        Validate that:
-        - Prevent tasks from being moved to another board
-        - Assigned users must belong to the same board
-        - reviewer users must belong to the same board
-        """
+        """Validate all task creation data."""
 
-        # Prevent tasks from being moved to another board
-        if 'board' in self.initial_data:  # type: ignore
-            raise serializers.ValidationError(
-                {'board': 'Changing the board is not allowed.'}
-            )
+        board = self.context.get('board') or attrs.get('board')
 
-        board = self.instance.board  # type: ignore
-
-        assignee = attrs.get('assignee')
-        reviewer = attrs.get('reviewer')
-
-        # Assigned users must belong to the same board
-        if assignee and not board.members.filter(id=assignee.id).exists():
-            raise serializers.ValidationError(
-                {'assignee_id': 'Assignee must be a board member.'}
-            )
-
-        # reviewer users must belong to the same board
-        if reviewer and not board.members.filter(id=reviewer.id).exists():
-            raise serializers.ValidationError(
-                {'reviewer_id': 'Reviewer must be a board member.'}
-            )
+        if board:
+            self.validate_task_users(board, attrs)
 
         return attrs
 
-    def to_representation(self, instance):
-        """Dynamically morph keys to match the nested JSON response format."""
+    def create(self, validated_data):
+        """Create a new Task instance."""
 
-        # 1. Get standard serialized dictionary data
-        representation = super().to_representation(instance)
-
-        # 2. Swap out flat _id fields for nested detailed object structures
-        representation['assignee'] = (
-            TaskUserSerializer(instance.assignee).data if instance.assignee else None
+        user_profile = getattr(
+            self.context['request'].user,
+            'userprofile',
+            None,
         )
 
-        representation['reviewer'] = (
-            TaskUserSerializer(instance.reviewer).data if instance.reviewer else None
-        )
+        validated_data['author'] = user_profile
 
-        # 3. Clean up the flat keys so they don't pollute the final output
-        representation.pop('assignee_id', None)
-        representation.pop('reviewer_id', None)
+        return super().create(validated_data)
 
-        return representation
+
+class TaskUpdateSerializer(BaseTaskSerializer):
+    """
+    Serializer used when updating an existing task.
+
+    This serializer controls:
+    - which fields can be updated
+    - how task update data is validated
+    - preventing the task from being moved to another board
+    """
+
+    board = serializers.PrimaryKeyRelatedField(
+        queryset=Board.objects.all(),
+        required=False,
+        write_only=True,
+    )
+
+    class Meta:
+        """Meta configuration for TaskUpdateSerializer."""
+
+        model = Task
+        fields = [
+            'id',
+            'board',
+            'title',
+            'description',
+            'status',
+            'priority',
+            'assignee_id',
+            'reviewer_id',
+            'assignee',
+            'reviewer',
+            'due_date',
+        ]
+
+    def validate_board(self, value):
+        """
+        Reject any attempt to change the task board.
+        """
+
+        raise serializers.ValidationError('Changing the board is not allowed.')
+
+    def validate(self, attrs):
+        """
+        Validate all task update data.
+        """
+
+        if self.instance:
+            self.validate_task_users(
+                self.instance.board,
+                attrs,
+            )
+
+        return attrs
 
 
 class CommentSerializer(serializers.ModelSerializer):
