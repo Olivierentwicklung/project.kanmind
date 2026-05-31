@@ -128,11 +128,12 @@ class TaskCreateView(CreateAPIView):
 
     def create(self, request, *args, **kwargs):
         """
-        Create a task after board lookup and permission check.
+        Create a task after verifying board existence and membership.
 
-        If the board field is missing, let the serializer return 400.
+        If a board ID is provided, return 404 when the board does not
+        exist and 403 when the user is not a member of the board.
+        Serializer validation handles missing or invalid fields.
         """
-
         board_id = request.data.get('board')
 
         if board_id is not None:
@@ -142,6 +143,12 @@ class TaskCreateView(CreateAPIView):
                 raise PermissionDenied('You must be a board member to create tasks.')
 
         return super().create(request, *args, **kwargs)
+
+    def perform_create(self, serializer):
+        """
+        Save the task with the authenticated user's profile as author.
+        """
+        serializer.save(author=getattr(self.request.user, 'userprofile', None))
 
 
 class TaskDetailView(RetrieveUpdateDestroyAPIView):
