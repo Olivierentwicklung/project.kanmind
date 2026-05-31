@@ -1,9 +1,44 @@
 import pytest
 from rest_framework import status
+from rest_framework.test import APIRequestFactory, force_authenticate
 
+from kanban_app.boards.api.views import BoardDetailView
 from kanban_app.boards.models import Board
 from kanban_app.tasks.models import Comment, Task
 from tests.conftest import BOARDS_URL
+
+
+@pytest.mark.django_db
+def test_delete_board_performance_regression(
+    user,
+    owned_board,
+    user_profile,
+    django_assert_num_queries,
+):
+    factory = APIRequestFactory()
+
+    task = Task.objects.create(
+        board=owned_board,
+        title='Task to delete',
+    )
+
+    Comment.objects.create(
+        task=task,
+        author=user_profile,
+        content='Comment to delete',
+    )
+
+    request = factory.delete(
+        f'{BOARDS_URL}{owned_board.id}/',
+    )
+    force_authenticate(request, user=user)
+
+    view = BoardDetailView.as_view()
+
+    with django_assert_num_queries(10):
+        response = view(request, board_id=owned_board.id)
+
+    assert response.status_code == status.HTTP_204_NO_CONTENT
 
 
 @pytest.mark.django_db

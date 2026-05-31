@@ -48,8 +48,6 @@ class BoardListView(ListCreateAPIView):
         return BoardSummarySerializer
 
     def create(self, request, *args, **kwargs):
-        """Create a new board and return the created board as a summary."""
-
         serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
 
@@ -57,16 +55,13 @@ class BoardListView(ListCreateAPIView):
         members = serializer.validated_data['members']
 
         board = serializer.save(owner=owner)
-        board.members.set(members)
+        board.members.add(*members)
 
         board = self.get_queryset().get(pk=board.pk)
 
         response_serializer = BoardSummarySerializer(board)
 
-        return Response(
-            response_serializer.data,
-            status=status.HTTP_201_CREATED,
-        )
+        return Response(response_serializer.data, status=status.HTTP_201_CREATED)
 
     def get_annotated_queryset(self):
         """

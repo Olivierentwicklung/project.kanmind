@@ -1,8 +1,43 @@
 import pytest
 from rest_framework import status
+from rest_framework.test import APIRequestFactory, force_authenticate
 
+from kanban_app.boards.api.views import BoardListView
 from kanban_app.boards.models import Board
 from tests.conftest import BOARDS_URL
+
+
+@pytest.mark.django_db
+def test_create_board_performance_regression(
+    user,
+    user_profile,
+    second_user_profile,
+    django_assert_num_queries,
+):
+    factory = APIRequestFactory()
+
+    payload = dict(
+        title='New Project',
+        members=[
+            user_profile.id,
+            second_user_profile.id,
+        ],
+    )
+
+    request = factory.post(
+        BOARDS_URL,
+        payload,
+        format='json',
+    )
+
+    force_authenticate(request, user=user)
+
+    view = BoardListView.as_view()
+
+    with django_assert_num_queries(7):
+        response = view(request)
+
+    assert response.status_code == status.HTTP_201_CREATED
 
 
 @pytest.mark.django_db
