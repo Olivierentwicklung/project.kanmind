@@ -14,7 +14,7 @@ class BoardSummarySerializer(serializers.ModelSerializer):
     ticket_count = serializers.IntegerField(read_only=True)
     tasks_to_do_count = serializers.IntegerField(read_only=True)
     tasks_high_prio_count = serializers.IntegerField(read_only=True)
-    owner_id = serializers.IntegerField(source='owner.user.id', read_only=True)
+    owner_id = serializers.IntegerField(source='owner.id', read_only=True)
 
     class Meta:
         """Configuration class for BoardSummarySerializer."""
@@ -35,7 +35,7 @@ class BoardCreateSerializer(serializers.ModelSerializer):
     """Serializer used to create a new Board."""
 
     members = serializers.PrimaryKeyRelatedField(
-        queryset=UserProfile.objects.select_related('user'),
+        queryset=UserProfile.objects.all(),
         many=True,
         required=True,
         allow_empty=False,

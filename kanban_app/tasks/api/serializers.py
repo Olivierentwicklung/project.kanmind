@@ -173,19 +173,6 @@ class TaskCreateSerializer(BaseTaskSerializer):
 
         return attrs
 
-    def create(self, validated_data):
-        """Create a new Task instance."""
-
-        user_profile = getattr(
-            self.context['request'].user,
-            'userprofile',
-            None,
-        )
-
-        validated_data['author'] = user_profile
-
-        return super().create(validated_data)
-
 
 class TaskUpdateSerializer(BaseTaskSerializer):
     """
