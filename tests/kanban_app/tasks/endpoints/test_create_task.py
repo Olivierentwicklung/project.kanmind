@@ -1,9 +1,53 @@
 import pytest
 from rest_framework import status
+from rest_framework.test import APIRequestFactory, force_authenticate
 
 from kanban_app.boards.models import Board
+from kanban_app.tasks.api.views import TaskCreateView
 from kanban_app.tasks.models import Task
 from tests.conftest import TASKS_URL
+
+
+@pytest.mark.django_db
+def test_create_task_peformance_regressiorn(
+    user,
+    user_profile,
+    second_user_profile,
+    django_assert_num_queries,
+):
+    factory = APIRequestFactory()
+
+    board = Board.objects.create(
+        title='Project Board',
+        owner=user_profile,
+    )
+    board.members.add(user_profile, second_user_profile)
+
+    payload = dict(
+        board=board.id,  # type:ignore
+        title='Review code',
+        description='Review the new PR for feature X',
+        status=Task.Status.REVIEW,
+        priority=Task.Priority.MEDIUM,
+        assignee_id=second_user_profile.id,
+        reviewer_id=user_profile.id,
+        due_date='2025-02-27',
+    )
+
+    request = factory.post(
+        TASKS_URL,
+        payload,
+        format='json',
+    )
+
+    force_authenticate(request, user=user)
+
+    view = TaskCreateView.as_view()
+
+    with django_assert_num_queries(11):
+        response = view(request)
+
+    assert response.status_code == status.HTTP_201_CREATED
 
 
 @pytest.mark.django_db

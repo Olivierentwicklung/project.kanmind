@@ -1,9 +1,63 @@
 import pytest
 from rest_framework import status
+from rest_framework.test import APIRequestFactory, force_authenticate
 
 from kanban_app.boards.models import Board
+from kanban_app.tasks.api.views import TaskDetailView
 from kanban_app.tasks.models import Task
 from tests.conftest import TASKS_URL
+
+
+@pytest.mark.django_db
+def test_update_task_peformance_regressiorn(
+    user,
+    user_profile,
+    second_user_profile,
+    django_assert_num_queries,
+):
+    factory = APIRequestFactory()
+
+    board = Board.objects.create(
+        title='Project Board',
+        owner=user_profile,
+    )
+    board.members.add(user_profile, second_user_profile)
+
+    task = Task.objects.create(
+        board=board,
+        title='Old title',
+        description='Old description',
+        status=Task.Status.REVIEW,
+        priority=Task.Priority.MEDIUM,
+        assignee=user_profile,
+        reviewer=second_user_profile,
+        due_date='2025-02-27',
+    )
+
+    payload = dict(
+        title='Finish code review',
+        description='Finish checking the PR and give feedback',
+        status=Task.Status.DONE,
+        priority=Task.Priority.HIGH,
+        assignee_id=second_user_profile.id,
+        reviewer_id=user_profile.id,
+        due_date='2025-02-28',
+    )
+
+    request = factory.patch(
+        f'{TASKS_URL}{task.id}/',  # type:ignore
+        payload,
+        format='json',
+    )
+
+    force_authenticate(request, user=user)
+
+    view = TaskDetailView.as_view()
+
+    with django_assert_num_queries(9):
+        response = view(request, task_id=task.id)  # type:ignore
+
+    assert response.status_code == status.HTTP_200_OK
 
 
 @pytest.mark.django_db

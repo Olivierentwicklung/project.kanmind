@@ -1,9 +1,46 @@
 import pytest
 from rest_framework import status
+from rest_framework.test import APIRequestFactory, force_authenticate
 
 from kanban_app.boards.models import Board
+from kanban_app.tasks.api.views import TaskDetailView
 from kanban_app.tasks.models import Comment, Task
 from tests.conftest import TASKS_URL
+
+
+@pytest.mark.django_db
+def test_delete_task_peformance_regressiorn(
+    user,
+    user_profile,
+    second_user_profile,
+    django_assert_num_queries,
+):
+    factory = APIRequestFactory()
+
+    board = Board.objects.create(
+        title='Project Board',
+        owner=second_user_profile,
+    )
+    board.members.add(user_profile, second_user_profile)
+
+    task = Task.objects.create(
+        board=board,
+        title='Task to delete',
+        author=user_profile,
+    )
+
+    request = factory.delete(
+        f'{TASKS_URL}{task.id}/',  # type:ignore
+    )
+
+    force_authenticate(request, user=user)
+
+    view = TaskDetailView.as_view()
+
+    with django_assert_num_queries(5):
+        response = view(request, task_id=task.id)  # type:ignore
+
+    assert response.status_code == status.HTTP_204_NO_CONTENT
 
 
 @pytest.mark.django_db
