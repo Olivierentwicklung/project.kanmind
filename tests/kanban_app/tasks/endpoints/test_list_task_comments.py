@@ -1,9 +1,45 @@
 import pytest
 from rest_framework import status
+from rest_framework.test import APIRequestFactory, force_authenticate
 
 from kanban_app.boards.models import Board
+from kanban_app.tasks.api.views import TaskCommentsView
 from kanban_app.tasks.models import Comment, Task
 from tests.conftest import TASKS_URL
+
+
+@pytest.mark.django_db
+def test_list_task_comments_peformance_regressiorn(
+    user,
+    user_profile,
+    second_user_profile,
+    django_assert_num_queries,
+):
+    factory = APIRequestFactory()
+
+    board = Board.objects.create(
+        title='Project Board',
+        owner=user_profile,
+    )
+    board.members.add(user_profile, second_user_profile)
+
+    task = Task.objects.create(
+        board=board,
+        title='Task with comments',
+    )
+
+    request = factory.get(
+        f'{TASKS_URL}{task.id}/comments/',  # type:ignore
+    )
+
+    force_authenticate(request, user=user)
+
+    view = TaskCommentsView.as_view()
+
+    with django_assert_num_queries(3):
+        response = view(request, task_id=task.id)  # type:ignore
+
+    assert response.status_code == status.HTTP_200_OK
 
 
 @pytest.mark.django_db

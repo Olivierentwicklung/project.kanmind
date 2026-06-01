@@ -1,8 +1,31 @@
 import pytest
 from rest_framework import status
+from rest_framework.test import APIRequestFactory, force_authenticate
 
+from kanban_app.boards.api.views import BoardDetailView
 from kanban_app.tasks.models import Task
 from tests.conftest import BOARDS_URL
+
+
+@pytest.mark.django_db
+def test_retrieve_board_performance_regression(
+    user,
+    board_with_detailed_tasks,
+    user_profile,
+    second_user_profile,
+    django_assert_num_queries,
+):
+    factory = APIRequestFactory()
+
+    request = factory.get(f'{BOARDS_URL}{board_with_detailed_tasks.id}/')
+    force_authenticate(request, user=user)
+
+    view = BoardDetailView.as_view()
+
+    with django_assert_num_queries(5):
+        response = view(request, board_id=board_with_detailed_tasks.id)
+
+    assert response.status_code == status.HTTP_200_OK
 
 
 @pytest.mark.django_db

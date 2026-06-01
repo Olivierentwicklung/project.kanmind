@@ -1,7 +1,43 @@
 import pytest
 from rest_framework import status
+from rest_framework.test import APIRequestFactory, force_authenticate
 
+from kanban_app.boards.api.views import BoardDetailView
 from tests.conftest import BOARDS_URL
+
+
+@pytest.mark.django_db
+def test_update_board_performance_regression(
+    user,
+    owned_board,
+    user_profile,
+    second_user_profile,
+    django_assert_num_queries,
+):
+    factory = APIRequestFactory()
+
+    payload = dict(
+        title='Changed title',
+        members=[
+            user_profile.id,
+            second_user_profile.id,
+        ],
+    )
+
+    request = factory.patch(
+        f'{BOARDS_URL}{owned_board.id}/',
+        payload,
+        format='json',
+    )
+
+    force_authenticate(request, user=user)
+
+    view = BoardDetailView.as_view()
+
+    with django_assert_num_queries(14):
+        response = view(request, board_id=owned_board.id)
+
+    assert response.status_code == status.HTTP_200_OK
 
 
 @pytest.mark.django_db

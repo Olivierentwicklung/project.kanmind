@@ -2,12 +2,58 @@ from datetime import date
 
 import pytest
 from rest_framework import status
+from rest_framework.test import APIRequestFactory, force_authenticate
 
 from kanban_app.boards.models import Board
+from kanban_app.tasks.api.views import AssignedTasksView
 from kanban_app.tasks.models import Comment, Task
 from tests.conftest import TASKS_URL
 
 ASSIGNED_TASKS_URL = TASKS_URL + 'assigned-to-me/'
+
+
+@pytest.mark.django_db
+def test_list_assigned_tasks_peformance_regressiorn(
+    user,
+    user_profile,
+    second_user_profile,
+    django_assert_num_queries,
+):
+    factory = APIRequestFactory()
+
+    board = Board.objects.create(
+        title='Project Board',
+        owner=user_profile,
+    )
+    board.members.add(user_profile, second_user_profile)
+
+    assigned_task_1 = Task.objects.create(
+        board=board,
+        title='Task 1',
+        description='Description for task 1',
+        status=Task.Status.TODO,
+        priority=Task.Priority.HIGH,
+        assignee=user_profile,
+        reviewer=second_user_profile,
+        due_date=date(2025, 2, 25),
+    )
+
+    Comment.objects.create(
+        task=assigned_task_1,
+        author=user_profile,
+        content='First comment',
+    )
+
+    request = factory.get(ASSIGNED_TASKS_URL)
+
+    force_authenticate(request, user=user)
+
+    view = AssignedTasksView.as_view()
+
+    with django_assert_num_queries(1):
+        response = view(request)
+
+    assert response.status_code == status.HTTP_200_OK
 
 
 @pytest.mark.django_db

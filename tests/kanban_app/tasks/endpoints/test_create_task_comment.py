@@ -1,9 +1,50 @@
 import pytest
 from rest_framework import status
+from rest_framework.test import APIRequestFactory, force_authenticate
 
 from kanban_app.boards.models import Board
+from kanban_app.tasks.api.views import TaskCommentsView
 from kanban_app.tasks.models import Comment, Task
 from tests.conftest import TASKS_URL
+
+
+@pytest.mark.django_db
+def test_create_task_comment_performance_regression(
+    user,
+    user_profile,
+    django_assert_num_queries,
+):
+    factory = APIRequestFactory()
+
+    board = Board.objects.create(
+        title='Project Board',
+        owner=user_profile,
+    )
+    board.members.add(user_profile)
+
+    task = Task.objects.create(
+        board=board,
+        title='Task with comments',
+    )
+
+    payload = {
+        'content': 'This is a new task comment.',
+    }
+
+    request = factory.post(
+        f'{TASKS_URL}{task.id}/comments/',  # type:ignore
+        payload,
+        format='json',
+    )
+
+    force_authenticate(request, user=user)
+
+    view = TaskCommentsView.as_view()
+
+    with django_assert_num_queries(3):
+        response = view(request, task_id=task.id)  # type:ignore
+
+    assert response.status_code == status.HTTP_201_CREATED
 
 
 @pytest.mark.django_db

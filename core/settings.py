@@ -11,6 +11,7 @@ https://docs.djangoproject.com/en/5.2/ref/settings/
 """
 
 import os
+import sys
 from pathlib import Path
 
 from dotenv import load_dotenv
@@ -61,8 +62,11 @@ MIDDLEWARE = [
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
     'corsheaders.middleware.CorsMiddleware',
-    'silk.middleware.SilkyMiddleware',
 ]
+
+TESTING = 'pytest' in sys.modules
+if DEBUG and not TESTING:
+    MIDDLEWARE += ['silk.middleware.SilkyMiddleware']
 
 CORS_ALLOWED_ORIGINS = [
     'http://127.0.0.1:5500',
