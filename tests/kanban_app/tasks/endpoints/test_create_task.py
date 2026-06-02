@@ -1,8 +1,11 @@
+from unittest.mock import Mock
+
 import pytest
 from rest_framework import status
 from rest_framework.test import APIRequestFactory, force_authenticate
 
 from kanban_app.boards.models import Board
+from kanban_app.tasks.api.permissions import TaskPermission
 from kanban_app.tasks.api.views import TaskCreateView
 from kanban_app.tasks.models import Task
 from tests.conftest import TASKS_URL
@@ -44,7 +47,7 @@ def test_create_task_peformance_regressiorn(
 
     view = TaskCreateView.as_view()
 
-    with django_assert_num_queries(11):
+    with django_assert_num_queries(10):
         response = view(request)
 
     assert response.status_code == status.HTTP_201_CREATED
@@ -105,6 +108,29 @@ def test_create_task_success(
     assert response.data['reviewer']['fullname'] == user_profile.fullname
     assert response.data['due_date'] == payload['due_date']
     assert response.data['comments_count'] == 0
+
+
+@pytest.mark.django_db
+def test_task_permission_trace_returns_false(user_profile):
+    factory = APIRequestFactory()
+
+    request = factory.generic('TRACE', '/tasks/')
+    request.user = Mock(userprofile=user_profile)
+
+    task = Mock()
+    task.author_id = user_profile.id
+    task.board.owner_id = user_profile.id
+    task.board.members.filter.return_value.exists.return_value = True
+
+    permission = TaskPermission()
+
+    result = permission.has_object_permission(
+        request,
+        None,
+        task,
+    )
+
+    assert result is False
 
 
 @pytest.mark.django_db

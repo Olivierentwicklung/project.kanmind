@@ -164,9 +164,11 @@ class TaskCreateSerializer(BaseTaskSerializer):
         ]
 
     def validate(self, attrs):
-        """Validate all task creation data."""
-
-        board = self.context.get('board') or attrs.get('board')
+        """
+        Validate that the assignee and reviewer belong to the
+        selected board before creating the task.
+        """
+        board = attrs.get('board')
 
         if board:
             self.validate_task_users(board, attrs)

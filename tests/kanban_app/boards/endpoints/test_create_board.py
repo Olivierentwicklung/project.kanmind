@@ -1,7 +1,10 @@
+from unittest.mock import Mock
+
 import pytest
 from rest_framework import status
 from rest_framework.test import APIRequestFactory, force_authenticate
 
+from kanban_app.boards.api.permissions import BoardPermission
 from kanban_app.boards.api.views import BoardListView
 from kanban_app.boards.models import Board
 from tests.conftest import BOARDS_URL
@@ -72,6 +75,40 @@ def test_create_board_success(auth_user_client, user_profile, second_user_profil
     assert response.data['tasks_to_do_count'] == 0
     assert response.data['tasks_high_prio_count'] == 0
     assert response.data['owner_id'] == user_profile.id
+
+
+@pytest.mark.django_db
+def test_board_permission_post_returns_false(
+    user,
+    user_profile,
+    second_user_profile,
+):
+    factory = APIRequestFactory()
+
+    payload = {
+        'title': 'New Project',
+        'members': [
+            user_profile.id,
+            second_user_profile.id,
+        ],
+    }
+
+    request = factory.post(
+        BOARDS_URL,
+        payload,
+        format='json',
+    )
+    request.user = user
+
+    board_mock = Mock()
+    board_mock.owner.user = user
+    board_mock.members.filter.return_value.exists.return_value = False
+
+    permission = BoardPermission()
+
+    result = permission.has_object_permission(request, None, board_mock)
+
+    assert result is False
 
 
 @pytest.mark.django_db

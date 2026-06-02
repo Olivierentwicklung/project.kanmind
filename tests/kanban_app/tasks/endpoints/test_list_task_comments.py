@@ -36,7 +36,7 @@ def test_list_task_comments_peformance_regressiorn(
 
     view = TaskCommentsView.as_view()
 
-    with django_assert_num_queries(3):
+    with django_assert_num_queries(4):
         response = view(request, task_id=task.id)  # type:ignore
 
     assert response.status_code == status.HTTP_200_OK

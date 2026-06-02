@@ -1,8 +1,11 @@
+from unittest.mock import Mock
+
 import pytest
 from rest_framework import status
 from rest_framework.test import APIRequestFactory, force_authenticate
 
 from kanban_app.boards.models import Board
+from kanban_app.tasks.api.permissions import CommentPermission
 from kanban_app.tasks.api.views import TaskDetailView
 from kanban_app.tasks.models import Comment, Task
 from tests.conftest import TASKS_URL
@@ -68,6 +71,27 @@ def test_delete_task_success_as_task_creator(
     assert response.status_code == status.HTTP_204_NO_CONTENT
     assert response.data is None
     assert not Task.objects.filter(id=task.id).exists()  # type:ignore
+
+
+@pytest.mark.django_db
+def test_comment_permission_get_returns_false(user_profile):
+    factory = APIRequestFactory()
+
+    request = factory.get('/comments/')
+    request.user = Mock(userprofile=user_profile)
+
+    comment = Mock()
+    comment.author = user_profile
+
+    permission = CommentPermission()
+
+    result = permission.has_object_permission(
+        request,
+        None,
+        comment,
+    )
+
+    assert result is False
 
 
 @pytest.mark.django_db
