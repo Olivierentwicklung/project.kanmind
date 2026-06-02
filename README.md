@@ -33,7 +33,7 @@ KanMind provides authentication, board management, task workflows, and comment c
 - Python 3.10+
 - pip / virtualenv
 - SQLite (default)
-- Pytest
+- Pytest + Coverage
 - Optional: Postman
 
 ---
@@ -276,19 +276,19 @@ as author
 
 ---
 
-**🎥 Demo:**
+# **🎥 Demo:**
 
-#### ERD
+## ERD
 
 ![Demo](z_screenshots/erd.drawio.png)
 
-#### Admin Panel
+## Admin Panel
 
 ![Demo](z_screenshots/admin_panel.png)
 
-#### Tests results WIP 1
+## Tests results with Coverage
 
-![Demo](z_screenshots/tests_results_wip_1.png)
+![Demo](z_screenshots/tests_results_final.png)
 
 ---
 
@@ -307,7 +307,7 @@ as author
 - Django
 - Django REST Framework
 - DRF Token Authentication
-- DRF with Pytest
+- DRF with Pytest and Coverage
 - SQLite (default)
 
 ---
