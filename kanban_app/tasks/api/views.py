@@ -5,7 +5,7 @@ from rest_framework.generics import (
     DestroyAPIView,
     ListAPIView,
     ListCreateAPIView,
-    RetrieveUpdateDestroyAPIView,
+    UpdateAPIView,
 )
 from rest_framework.permissions import IsAuthenticated
 
@@ -94,29 +94,19 @@ class TaskCreateView(CreateAPIView):
         serializer.save(author=self.request.user.userprofile)  # type:ignore
 
 
-class TaskDetailView(RetrieveUpdateDestroyAPIView):
+class TaskDetailView(UpdateAPIView, DestroyAPIView):
     """
     API view used to retrieve, update, or delete a single task.
 
     Supported actions:
-    - GET: retrieve task details
     - PATCH: partially update task fields
     - PUT: fully update task fields
     - DELETE: delete the task
     """
 
+    serializer_class = TaskUpdateSerializer
     permission_classes = [IsAuthenticated, TaskPermission]
     lookup_url_kwarg = 'task_id'
-
-    def get_serializer_class(self):  # type: ignore
-        """
-        Return the correct serializer depending on the request method.
-        """
-
-        if self.request.method in ['PATCH', 'PUT']:
-            return TaskUpdateSerializer
-
-        return TaskSerializer
 
     def get_queryset(self):  # type: ignore
         """

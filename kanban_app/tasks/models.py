@@ -102,7 +102,4 @@ class Comment(models.Model):
     )
 
     def __str__(self):
-        if self.author:
-            return f'Comment by {self.author}'
-
-        return 'Comment by deleted user'
+        return f'Comment by {self.author}'

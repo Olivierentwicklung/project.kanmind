@@ -26,25 +26,6 @@ class Board(models.Model):
         blank=True,
     )
 
-    def user_has_access(self, user):
-        """
-        Check if a Django user can access this board.
-
-        A user has access if:
-        - they are the board owner
-        - or they are one of the board members
-        """
-
-        user_profile = getattr(user, 'userprofile', None)
-
-        if not user_profile:
-            return False
-
-        return (
-            self.owner == user_profile
-            or self.members.filter(pk=user_profile.pk).exists()
-        )
-
     def __str__(self):
         """
         Return a readable string representation of the board.
