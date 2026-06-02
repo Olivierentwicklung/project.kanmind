@@ -1,6 +1,5 @@
 from django.db.models import Count
 from django.shortcuts import get_object_or_404
-from rest_framework.exceptions import PermissionDenied
 from rest_framework.generics import (
     CreateAPIView,
     DestroyAPIView,
@@ -10,7 +9,6 @@ from rest_framework.generics import (
 )
 from rest_framework.permissions import IsAuthenticated
 
-from kanban_app.boards.models import Board
 from kanban_app.tasks.models import Comment, Task
 
 from .permissions import CommentPermission, TaskPermission
@@ -76,79 +74,24 @@ class ReviewTasksView(ListAPIView):
 
 class TaskCreateView(CreateAPIView):
     """
-    API view for creating a task.
+    API view for creating tasks.
 
-    The view handles:
-    - authentication
-    - board lookup
-    - 404 if board does not exist
-    - 403 if user cannot create tasks on this board
-    - optimized response after creation
+    Access is restricted to authenticated users who are
+    members of the specified board or the board owner.
+
+    The authenticated user's profile is automatically
+    assigned as the task author.
     """
 
     serializer_class = TaskCreateSerializer
-    permission_classes = [IsAuthenticated]
-
-    def get_board(self):
-        """
-        Find and return the Board object from the board ID sent in the request.
-        """
-
-        board_id = self.request.data.get('board')  # type:ignore
-
-        return get_object_or_404(
-            Board.objects.prefetch_related('members'),
-            pk=board_id,
-        )
-
-    def get_serializer_context(self):
-        """
-        Add the board to the serializer context when it exists.
-        """
-
-        context = super().get_serializer_context()
-
-        if hasattr(self, 'board'):
-            context['board'] = self.board  # type:ignore
-
-        return context
-
-    def get_queryset(self):  # type: ignore
-        """
-        Return optimized task queryset for the response.
-        """
-
-        return Task.objects.select_related(
-            'board',
-            'assignee__user',
-            'reviewer__user',
-        ).annotate(
-            comments_count=Count('comments', distinct=True),
-        )
-
-    def create(self, request, *args, **kwargs):
-        """
-        Create a task after verifying board existence and membership.
-
-        If a board ID is provided, return 404 when the board does not
-        exist and 403 when the user is not a member of the board.
-        Serializer validation handles missing or invalid fields.
-        """
-        board_id = request.data.get('board')
-
-        if board_id is not None:
-            board = self.get_board()
-
-            if not board.user_has_access(request.user):
-                raise PermissionDenied('You must be a board member to create tasks.')
-
-        return super().create(request, *args, **kwargs)
+    permission_classes = [IsAuthenticated, TaskPermission]
 
     def perform_create(self, serializer):
         """
-        Save the task with the authenticated user's profile as author.
+        Save the task with the authenticated user's profile
+        as the author.
         """
-        serializer.save(author=getattr(self.request.user, 'userprofile', None))
+        serializer.save(author=self.request.user.userprofile)  # type:ignore
 
 
 class TaskDetailView(RetrieveUpdateDestroyAPIView):
@@ -211,42 +154,43 @@ class TaskDetailView(RetrieveUpdateDestroyAPIView):
         serializer.instance = self.get_queryset().get(pk=instance.pk)
 
 
-class TaskAccessMixin:
-    def get_task(self):
-        if hasattr(self, '_task'):
-            return self._task
-
-        task = get_object_or_404(
-            Task.objects.select_related('board'),
-            id=self.kwargs['task_id'],  # type:ignore
-        )
-
-        user_profile = getattr(self.request.user, 'userprofile', None)  # type:ignore
-
-        is_owner = task.board.owner_id == getattr(user_profile, 'id', None)
-
-        is_member = task.board.members.filter(
-            id=getattr(user_profile, 'id', None)
-        ).exists()
-
-        if not user_profile or not (is_owner or is_member):
-            raise PermissionDenied('You must be a board member to access this task.')
-
-        self._task = task
-        return task
-
-
-class TaskCommentsView(TaskAccessMixin, ListCreateAPIView):
+class TaskCommentsView(ListCreateAPIView):
     """
-    List and create comments for a task using optimized query flows.
+    List and create comments for a task.
+
+    Access is restricted to users who have permission to
+    access the associated task.
     """
 
     serializer_class = CommentSerializer
+    permission_classes = [IsAuthenticated, TaskPermission]
 
-    permission_classes = [IsAuthenticated, TaskPermission, CommentPermission]
+    def get_task(self):
+        """
+        Retrieve the task referenced in the URL and verify
+        that the current user has permission to access it.
 
-    def get_queryset(self):  # type:ignore
-        """Return all  task comments"""
+        Returns:
+            Task: The requested task instance.
+
+        Raises:
+            Http404: If the task does not exist.
+            PermissionDenied: If the user cannot access the task.
+        """
+        task = get_object_or_404(
+            Task.objects.select_related('board').prefetch_related('board__members'),
+            id=self.kwargs['task_id'],  # type: ignore
+        )
+
+        self.check_object_permissions(self.request, task)
+
+        return task
+
+    def get_queryset(self):  # type: ignore
+        """
+        Return all comments belonging to the requested task,
+        ordered by creation date.
+        """
         return (
             Comment.objects.filter(task=self.get_task())
             .select_related('author__user')
@@ -254,23 +198,32 @@ class TaskCommentsView(TaskAccessMixin, ListCreateAPIView):
         )
 
     def perform_create(self, serializer):
-        task = self.get_task()
-        author = getattr(self.request.user, 'userprofile', None)
+        """
+        Create a comment for the requested task and assign
+        the authenticated user's profile as the author.
+        """
+        serializer.save(
+            task=self.get_task(),
+            author=self.request.user.userprofile,  # type: ignore
+        )
 
-        serializer.save(task=task, author=author)
 
-
-class TaskCommentDetailView(TaskAccessMixin, DestroyAPIView):
+class TaskCommentDetailView(DestroyAPIView):
     """
-    Delete a task comment safely with ownership checks.
+    Delete a comment belonging to a specific task.
+
+    Only the comment author is allowed to delete the comment.
     """
 
     serializer_class = CommentSerializer
     permission_classes = [IsAuthenticated, CommentPermission]
     lookup_url_kwarg = 'comment_id'
 
-    def get_queryset(self):  # type:ignore
-        """Return the comment"""
-        return Comment.objects.filter(task=self.get_task()).select_related(
-            'author__user', 'task__board'
+    def get_queryset(self):  # type: ignore
+        """
+        Return comments that belong to the task specified in
+        the URL.
+        """
+        return Comment.objects.filter(task_id=self.kwargs['task_id']).select_related(
+            'author__user'
         )

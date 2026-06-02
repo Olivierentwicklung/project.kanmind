@@ -41,7 +41,7 @@ def test_create_task_comment_performance_regression(
 
     view = TaskCommentsView.as_view()
 
-    with django_assert_num_queries(3):
+    with django_assert_num_queries(4):
         response = view(request, task_id=task.id)  # type:ignore
 
     assert response.status_code == status.HTTP_201_CREATED

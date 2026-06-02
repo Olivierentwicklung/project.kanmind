@@ -44,7 +44,7 @@ def test_create_task_peformance_regressiorn(
 
     view = TaskCreateView.as_view()
 
-    with django_assert_num_queries(11):
+    with django_assert_num_queries(10):
         response = view(request)
 
     assert response.status_code == status.HTTP_201_CREATED

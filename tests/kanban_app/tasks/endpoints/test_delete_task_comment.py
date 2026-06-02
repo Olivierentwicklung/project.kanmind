@@ -41,7 +41,7 @@ def test_delete_task_comment_peformance_regressiorn(
 
     view = TaskCommentDetailView.as_view()
 
-    with django_assert_num_queries(4):
+    with django_assert_num_queries(2):
         response = view(request, task_id=task.id, comment_id=comment.id)  # type:ignore
 
     assert response.status_code == status.HTTP_204_NO_CONTENT
